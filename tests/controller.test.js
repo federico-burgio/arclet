@@ -119,6 +119,67 @@ test('optional background color upgrades older settings, persists globally, and 
   assert.equal((await browser.run()).backgroundColor, null);
 });
 
+test('favorites per row defaults to four and persists independently across windows and restarts', async () => {
+  const browser = fakeBrowser([tab(1, 'https://a.test/')]);
+  delete browser.local.data.favoritesPerRow;
+  assert.equal((await browser.run()).favoritesPerRow, 4);
+  await browser.run('SAVE_PAGE', { kind: 'favorite', tabId: 1 });
+  const favorites = (await browser.run()).favorites;
+  assert.equal((await browser.run('SET_FAVORITES_PER_ROW', { count: 1 })).favoritesPerRow, 1);
+  assert.equal((await browser.run('GET_STATE', {}, 2)).favoritesPerRow, 1);
+  await browser.run('SET_FAVORITES_PER_ROW', { count: 8 });
+  await browser.run('SET_FAVORITE_LABELS', { visible: false });
+  await browser.run('SELECT_SPACE', { id: 'work' });
+  browser.restart([tab(11, 'https://a.test/')]);
+  let state = await browser.run();
+  assert.equal(state.favoritesPerRow, 8);
+  assert.equal(state.showFavoriteLabels, false);
+  assert.deepEqual(state.favorites, favorites);
+  state = await browser.run('SET_FAVORITES_PER_ROW', { count: 4 });
+  assert.equal(state.favoritesPerRow, 4);
+  browser.suspend();
+  assert.equal((await browser.run()).favoritesPerRow, 4);
+});
+
+test('invalid favorites row counts cannot overwrite the saved preference', async () => {
+  const browser = fakeBrowser();
+  await browser.run('SET_FAVORITES_PER_ROW', { count: 3 });
+  for (const count of [undefined, null, 0, -1, 9, 2.5, '4', true, {}, Infinity, NaN]) {
+    await assert.rejects(browser.run('SET_FAVORITES_PER_ROW', { count }), /between 1 and 8/);
+    assert.equal((await browser.run()).favoritesPerRow, 3);
+  }
+});
+
+test('font size defaults to 100% and persists across windows, spaces, themes, and restarts', async () => {
+  const browser = fakeBrowser([tab(1, 'https://a.test/')]);
+  delete browser.local.data.fontScale;
+  assert.equal((await browser.run()).fontScale, 100);
+  for (const scale of [90, 110, 125, 150]) {
+    assert.equal((await browser.run('SET_FONT_SCALE', { scale })).fontScale, scale);
+  }
+  assert.equal((await browser.run('GET_STATE', {}, 2)).fontScale, 150);
+  await browser.run('SET_FAVORITES_PER_ROW', { count: 2 });
+  await browser.run('SELECT_SPACE', { id: 'work' });
+  await browser.run('SET_THEME', { theme: 'dark' });
+  browser.restart([tab(11, 'https://a.test/')]);
+  const state = await browser.run();
+  assert.equal(state.fontScale, 150);
+  assert.equal(state.favoritesPerRow, 2);
+  assert.equal(state.theme, 'dark');
+  await browser.run('SET_FONT_SCALE', { scale: 100 });
+  browser.suspend();
+  assert.equal((await browser.run()).fontScale, 100);
+});
+
+test('invalid font scales leave the saved font size unchanged', async () => {
+  const browser = fakeBrowser();
+  await browser.run('SET_FONT_SCALE', { scale: 125 });
+  for (const scale of [undefined, null, 0, -1, 89, 101, 151, 125.5, '100', true, {}, NaN]) {
+    await assert.rejects(browser.run('SET_FONT_SCALE', { scale }), /font size from the list/);
+    assert.equal((await browser.run()).fontScale, 125);
+  }
+});
+
 test('invalid background colors leave the saved preference untouched', async () => {
   const browser = fakeBrowser();
   await browser.run('SET_BACKGROUND_COLOR', { color: '#123456' });

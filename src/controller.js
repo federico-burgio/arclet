@@ -1,4 +1,4 @@
-import { COLORS, defaultData, destination, safeSavedUrl, iconAppearance, openTabsForSpace } from './model.js';
+import { COLORS, DEFAULT_FAVORITES_PER_ROW, MAX_FAVORITES_PER_ROW, FONT_SCALES, DEFAULT_FONT_SCALE, defaultData, destination, safeSavedUrl, iconAppearance, openTabsForSpace } from './model.js';
 import { preparePersistence, reconcileWorkspace, forgetTab } from './persistence.js';
 import { normalizePinnedOrder, movePinnedItem, pinnedEntries, removePinnedFolder } from './pinned-order.js';
 
@@ -19,6 +19,8 @@ export function createController(api, notify = () => {}) {
     data.backgroundColor ??= null;
     data.showSearchBar ??= true;
     data.showFavoriteLabels ??= true;
+    data.favoritesPerRow ??= DEFAULT_FAVORITES_PER_ROW;
+    data.fontScale ??= DEFAULT_FONT_SCALE;
     data.folders ??= [];
     normalizePinnedOrder(data);
     const live = session.live ?? { tabSpaces: {}, windowSpaces: {} };
@@ -299,6 +301,16 @@ export function createController(api, notify = () => {}) {
       case 'SET_FAVORITE_LABELS':
         if (typeof payload.visible !== 'boolean') throw new Error('Choose whether to show favorite labels.');
         data.showFavoriteLabels = payload.visible;
+        break;
+      case 'SET_FAVORITES_PER_ROW':
+        if (!Number.isInteger(payload.count) || payload.count < 1 || payload.count > MAX_FAVORITES_PER_ROW) {
+          throw new Error(`Choose between 1 and ${MAX_FAVORITES_PER_ROW} favorites per row.`);
+        }
+        data.favoritesPerRow = payload.count;
+        break;
+      case 'SET_FONT_SCALE':
+        if (!FONT_SCALES.includes(payload.scale)) throw new Error('Choose a font size from the list.');
+        data.fontScale = payload.scale;
         break;
       default: throw new Error('Unknown sidebar command.');
     }

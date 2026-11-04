@@ -10,6 +10,10 @@ export const COLORS = {
 };
 
 export const DEFAULT_SPACE_COLOR = 'slate';
+export const DEFAULT_FAVORITES_PER_ROW = 4;
+export const MAX_FAVORITES_PER_ROW = 8;
+export const FONT_SCALES = [90, 100, 110, 125, 150];
+export const DEFAULT_FONT_SCALE = 100;
 
 export function defaultData() {
   return {
@@ -24,7 +28,9 @@ export function defaultData() {
     theme: 'system',
     backgroundColor: null,
     showSearchBar: true,
-    showFavoriteLabels: true
+    showFavoriteLabels: true,
+    favoritesPerRow: DEFAULT_FAVORITES_PER_ROW,
+    fontScale: DEFAULT_FONT_SCALE
   };
 }
 

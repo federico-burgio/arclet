@@ -145,10 +145,13 @@ function applyState(next) {
   if (draggingId !== null || draggingPinned || draggingFavorites) { deferredState = next; return; }
   const focusKey = document.activeElement?.dataset.focusKey;
   state = next;
+  document.documentElement.style.setProperty('--font-scale', state.fontScale / 100);
   applyTheme();
   $('#search-button').hidden = !state.showSearchBar;
   $('#show-search-bar').checked = state.showSearchBar;
   $('#show-favorite-labels').checked = state.showFavoriteLabels;
+  $('#favorites-per-row').value = String(state.favoritesPerRow);
+  $('#font-size').value = String(state.fontScale);
   const space = state.spaces.find(space => space.id === state.spaceId);
   $('#space-name').textContent = space.name;
   document.title = `${space.name} — Arclet`;
@@ -170,7 +173,7 @@ function saveCurrent(kind) {
 function renderFavorites() {
   const grid = $('#favorites');
   $('.favorites-section').hidden = state.favorites.length === 0;
-  grid.style.setProperty('--favorite-columns', Math.min(4, Math.max(1, state.favorites.length)));
+  grid.style.setProperty('--favorite-columns', Math.min(state.favoritesPerRow, Math.max(1, state.favorites.length)));
   grid.classList.toggle('favorites--icons-only', !state.showFavoriteLabels);
   grid.replaceChildren();
   for (const page of state.favorites) {
@@ -760,6 +763,20 @@ $('#show-favorite-labels').addEventListener('change', async event => {
   const ok = await command('SET_FAVORITE_LABELS', { visible: toggle.checked });
   toggle.disabled = false;
   if (!ok) toggle.checked = state.showFavoriteLabels;
+});
+$('#favorites-per-row').addEventListener('change', async event => {
+  const select = event.currentTarget;
+  select.disabled = true;
+  const ok = await command('SET_FAVORITES_PER_ROW', { count: Number(select.value) });
+  select.disabled = false;
+  if (!ok) select.value = String(state.favoritesPerRow);
+});
+$('#font-size').addEventListener('change', async event => {
+  const select = event.currentTarget;
+  select.disabled = true;
+  const ok = await command('SET_FONT_SCALE', { scale: Number(select.value) });
+  select.disabled = false;
+  if (!ok) select.value = String(state.fontScale);
 });
 
 try {
