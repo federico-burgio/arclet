@@ -212,6 +212,14 @@
   .sheet-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 27px; }
   .primary-button { background: var(--primary); color: var(--on-primary); border-radius: 7px; font-size: 0.846154rem; padding: 10px 14px; }
   .primary-button:hover { filter: brightness(1.08); }
+  .transfer-description, .transfer-links { color: var(--muted); font-size: 0.769231rem; line-height: 1.7; }
+  .transfer-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .secondary-button { padding: 9px 12px; border: 1px solid var(--line); border-radius: 7px; font-size: 0.846154rem; }
+  .secondary-button:hover { background: var(--hover); }
+  .transfer-links a { color: var(--muted); text-underline-offset: 3px; }
+  .transfer-links a:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+  .import-summary { margin-bottom: 16px; padding: 12px; background: var(--sidebar-surface); border-radius: 8px; font-size: 0.846154rem; line-height: 1.8; overflow-wrap: anywhere; }
+  .import-preferences { margin-top: 16px; }
   .text-button { font-size: 0.769231rem; padding: 8px 0; margin-right: auto; }
   .danger { color: #b44b60; }
   :root[data-mode="dark"] .danger { color: #ee8b9e; }

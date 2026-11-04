@@ -5,6 +5,7 @@ import { openIconPicker } from './icon-picker.js';
 import { pinnedEntries } from './pinned-order.js';
 import { createSavedItemDrag } from './pin-drag.js';
 import { createFavoriteDrag } from './favorite-drag.js';
+import { MAX_TRANSFER_BYTES } from './transfer.js';
 
 const $ = selector => document.querySelector(selector);
 const make = (tag, className, text) => {
@@ -40,6 +41,7 @@ let refreshingPage = false;
 let navigatingPage = false;
 let copyingUrl = false;
 let clearingTabs = false;
+let importDraft;
 let draggingId = null;
 let draggingPinned = false;
 let draggingFavorites = false;
@@ -803,6 +805,85 @@ $('.folder-content').addEventListener('contextmenu', event => {
   openContentActions(event.clientX, event.clientY);
 });
 $('#settings-button').addEventListener('click', () => { if (state) $('#settings-dialog').showModal(); });
+$('#choose-import').addEventListener('click', () => {
+  $('#import-file').value = '';
+  $('#import-file').click();
+});
+$('#import-file').addEventListener('change', async event => {
+  const file = event.currentTarget.files[0];
+  if (!file) return;
+  const chooser = $('#choose-import');
+  chooser.disabled = true;
+  importDraft = null;
+  $('#transfer-error').hidden = true;
+  try {
+    if (file.size > MAX_TRANSFER_BYTES) throw new Error('Import files must be 5 MiB or smaller.');
+    let document;
+    try { document = JSON.parse(await file.text()); }
+    catch { throw new Error('This file is not valid JSON. See the format guide for an example.'); }
+    const { importPreview: preview } = await platform.request('PREVIEW_IMPORT', { document });
+    importDraft = { document, token: preview.token };
+    $('#import-filename').textContent = file.name;
+    const count = (value, singular, plural = `${singular}s`) => `${value} ${value === 1 ? singular : plural}`;
+    const lines = [
+      `${count(preview.newSpaces, 'new space')} · ${count(preview.mergedSpaces, 'existing space')} merged`,
+      `${count(preview.favorites, 'new favorite')} · ${count(preview.pins, 'new pinned page')} · ${count(preview.folders, 'new folder')}`,
+      `${count(preview.skippedPages, 'existing URL')} skipped`,
+      preview.spaceNames.length ? `Spaces: ${preview.spaceNames.join(', ')}` : 'No spaces in this file.'
+    ];
+    $('#import-summary').replaceChildren(...lines.map(line => make('p', '', line)));
+    $('#import-settings').checked = false;
+    $('#import-settings').disabled = !preview.hasSettings;
+    $('#import-error').hidden = true;
+    $('#confirm-import').disabled = false;
+    $('#import-dialog').showModal();
+  } catch (error) {
+    $('#transfer-error').textContent = error.message;
+    $('#transfer-error').hidden = false;
+  }
+  finally { chooser.disabled = false; }
+});
+$('#confirm-import').addEventListener('click', async () => {
+  if (!importDraft) return;
+  const confirm = $('#confirm-import');
+  confirm.disabled = true;
+  try {
+    const ticket = ++revision;
+    const next = await platform.request('IMPORT_DATA', { ...importDraft, applySettings: $('#import-settings').checked });
+    if (ticket === revision) applyState(next);
+    importDraft = null;
+    $('#import-dialog').close();
+    toast('Import complete.');
+  } catch (error) {
+    $('#import-error').textContent = error.message;
+    $('#import-error').hidden = false;
+    // A new preview is required after an error or any concurrent data changes.
+  }
+});
+$('#import-dialog').addEventListener('close', () => { importDraft = null; });
+$('#export-data').addEventListener('click', async () => {
+  const exportButton = $('#export-data');
+  exportButton.disabled = true;
+  $('#transfer-error').hidden = true;
+  try {
+    const { exportDocument } = await platform.request('EXPORT_DATA');
+    const blob = new Blob([`${JSON.stringify(exportDocument, null, 2)}\n`], { type: 'application/json' });
+    if (blob.size > MAX_TRANSFER_BYTES) throw new Error('This export exceeds the 5 MiB import limit. Reduce saved pages before exporting.');
+    const url = URL.createObjectURL(blob);
+    const link = make('a');
+    link.href = url;
+    link.download = `arclet-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast('Export downloaded.');
+  } catch (error) {
+    $('#transfer-error').textContent = error.message;
+    $('#transfer-error').hidden = false;
+  }
+  finally { exportButton.disabled = false; }
+});
 document.querySelectorAll('[data-theme]').forEach(node => node.addEventListener('click', () => command('SET_THEME', { theme: node.dataset.theme })));
 async function setBackgroundColor(color) {
   const controls = ['#custom-background', '#background-color', '#background-hex', '#reset-background'].map($);

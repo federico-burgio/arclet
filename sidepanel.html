@@ -115,6 +115,14 @@
     <dialog id="settings-dialog" class="sheet" aria-labelledby="settings-title">
       <div class="sheet-header"><h2 id="settings-title">Make yourself at home.</h2><button class="icon-button" data-close="settings-dialog" aria-label="Close settings" data-icon="close"></button></div>
       <p class="sheet-description">Your browser, a little more you.</p>
+      <fieldset class="transfer-settings">
+        <legend>Import &amp; export</legend>
+        <p class="transfer-description">Move spaces, favorites, and pinned pages using an Arclet JSON file.</p>
+        <div class="transfer-actions"><button id="choose-import" type="button" class="secondary-button">Import JSON</button><button id="export-data" type="button" class="secondary-button">Export JSON</button></div>
+        <input id="import-file" type="file" accept=".json,application/json" hidden>
+        <p id="transfer-error" class="fine-print danger" role="alert" hidden></p>
+        <p class="transfer-links"><a href="https://github.com/federico-burgio/arclet/blob/main/docs/import-format.md" target="_blank" rel="noopener noreferrer">Format guide on GitHub</a> · <a href="docs/import-example.json" download="arclet-example.json">Download example</a></p>
+      </fieldset>
       <fieldset><legend>Appearance</legend><div id="themes" class="theme-options"><button data-theme="system">Auto</button><button data-theme="light">Light</button><button data-theme="dark">Dark</button></div></fieldset>
       <fieldset>
         <legend>Background</legend>
@@ -157,7 +165,17 @@
       <div class="settings-detail"><span data-icon="shield"></span><div><strong>Just you and your tabs</strong><p>Saved pages and spaces stay on this device. No account, analytics, or external services.</p></div></div>
       <p class="fine-print">For a left sidebar, choose Left in Chrome’s side panel appearance settings. Chrome’s tab strip stays visible. Tabs return to their spaces when Chrome restores your previous session. Enable “Continue where you left off” in Chrome’s startup settings.</p>
       <p class="fine-print">Outline icons by Lucide, bundled on this device. ISC / MIT licenses included.</p>
-      <div class="settings-brand"><img class="brand-mark" src="icons/mark.svg" alt="" width="32" height="32"><div>Arclet <span>0.11.0</span><p>Inspired by Arc. Independently made.</p></div></div>
+      <div class="settings-brand"><img class="brand-mark" src="icons/mark.svg" alt="" width="32" height="32"><div>Arclet <span>0.12.0</span><p>Inspired by Arc. Independently made.</p></div></div>
+    </dialog>
+
+    <dialog id="import-dialog" class="sheet" aria-labelledby="import-title">
+      <div class="sheet-header"><h2 id="import-title">Import into Arclet</h2><button type="button" class="icon-button" data-close="import-dialog" aria-label="Cancel import" data-icon="close"></button></div>
+      <p id="import-filename" class="sheet-description"></p>
+      <div id="import-summary" class="import-summary" aria-live="polite"></div>
+      <p class="transfer-description">Spaces and folders with the same name are merged. Existing pages, their order, and their appearance are kept; new items are appended. No browser tabs are opened or closed.</p>
+      <div class="settings-toggle import-preferences"><div><label for="import-settings">Apply appearance settings</label><p id="import-settings-help">Replace your theme, background, font size, and sidebar preferences with settings from the file.</p></div><input id="import-settings" type="checkbox" role="switch" aria-describedby="import-settings-help"></div>
+      <p id="import-error" class="fine-print danger" role="alert" hidden></p>
+      <div class="sheet-actions"><button type="button" class="text-button" data-close="import-dialog">Cancel</button><button id="confirm-import" type="button" class="primary-button">Import</button></div>
     </dialog>
 
     <div id="context-menu" class="context-menu" role="menu" aria-label="Actions" hidden></div>

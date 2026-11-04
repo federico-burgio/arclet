@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/federico-burgio/arclet/raw/main/docs/import-format.schema.json",
+  "title": "Arclet interchange format v1",
+  "description": "Runtime checks also enforce known icons, normalized URL and name uniqueness, 10,000 total records, 5 MiB, and destination space limits.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "const": "arclet"
+    },
+    "version": {
+      "const": 1
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "favorites": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/page"
+      }
+    },
+    "spaces": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/space"
+      },
+      "maxItems": 12
+    },
+    "settings": {
+      "$ref": "#/$defs/settings"
+    }
+  },
+  "required": [
+    "format",
+    "version"
+  ],
+  "anyOf": [
+    {
+      "required": [
+        "spaces"
+      ]
+    },
+    {
+      "required": [
+        "favorites"
+      ]
+    }
+  ],
+  "$defs": {
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "type": "string",
+          "maxLength": 8192,
+          "pattern": "^[hH][tT][tT][pP][sS]?://",
+          "format": "uri"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": "Name from the bundled Arclet Lucide catalog; checked at runtime."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "iconColor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        }
+      },
+      "required": [
+        "url"
+      ]
+    },
+    "pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "pin"
+        },
+        "url": {
+          "type": "string",
+          "maxLength": 8192,
+          "pattern": "^[hH][tT][tT][pP][sS]?://",
+          "format": "uri"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": "Name from the bundled Arclet Lucide catalog; checked at runtime."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "iconColor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        }
+      },
+      "required": [
+        "type",
+        "url"
+      ]
+    },
+    "folder": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "folder"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "\\S"
+        },
+        "icon": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Name from the bundled Arclet Lucide catalog; checked at runtime."
+        },
+        "iconColor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "collapsed": {
+          "type": "boolean"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pin"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "name"
+      ]
+    },
+    "space": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "\\S"
+        },
+        "color": {
+          "enum": [
+            "iris",
+            "sage",
+            "sand",
+            "rose",
+            "ocean",
+            "slate"
+          ]
+        },
+        "backgroundColor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "icon": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Name from the bundled Arclet Lucide catalog; checked at runtime."
+        },
+        "iconColor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/pin"
+              },
+              {
+                "$ref": "#/$defs/folder"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "theme": {
+          "enum": [
+            "system",
+            "light",
+            "dark"
+          ]
+        },
+        "backgroundColor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "showSearchBar": {
+          "type": "boolean"
+        },
+        "showFavoriteLabels": {
+          "type": "boolean"
+        },
+        "favoritesPerRow": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        "fontScale": {
+          "enum": [
+            90,
+            100,
+            110,
+            125,
+            150
+          ]
+        }
+      }
+    }
+  }
+}

@@ -12,7 +12,10 @@ assert.ok(!manifest.content_scripts, 'Do not inject anything into pages.');
 for (const path of [manifest.background.service_worker, manifest.side_panel.default_path, ...Object.values(manifest.icons), ...Object.values(manifest.action.default_icon)]) await access(path);
 const html = await readFile(manifest.side_panel.default_path, 'utf8');
 assert.ok(!/<script(?![^>]*\bsrc=)/.test(html), 'Scripts must be external for extension CSP.');
-for (const match of html.matchAll(/(?:src|href)="([^"#]+)"/g)) await access(match[1]);
+for (const match of html.matchAll(/(?:src|href)="([^"#]+)"/g)) {
+  if (match[1].startsWith('https://')) continue;
+  await access(match[1]);
+}
 const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
 assert.equal(new Set(ids).size, ids.length, 'HTML IDs must be unique.');
 for (const directory of ['src', 'scripts', 'tests']) {

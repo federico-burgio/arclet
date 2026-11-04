@@ -40,6 +40,14 @@ The default shortcut is **⌘ Shift E** on macOS or **Ctrl Shift E** elsewhere. 
 
 Deleting a space moves its tabs, folders, and pinned pages into the first remaining space, keeping folder membership. It does not close tabs. Tabs opened by a page inherit their opener’s space; other new tabs use the window’s selected space.
 
+## Import and export
+
+Use **Settings → Import & export** to download your sidebar as JSON or select an Arclet JSON file. Import shows a preview before saving. It merges spaces and folders by exact name, skips existing saved URLs, and appends new items without opening or closing browser tabs. Appearance settings are optional and off by default when importing.
+
+The public **Arclet format v1** covers spaces, favorites, pinned pages, folders, icons, colors, order, and appearance preferences. See the [format guide](docs/import-format.md), [JSON Schema](docs/import-format.schema.json), and [example file](docs/import-example.json). Settings links to the guide on GitHub and includes an offline example download. This is a documented target for future converters; it does not directly parse Arc's internal files.
+
+Export excludes live browser tabs, history, cookies, passwords, and tab-recovery state. All import/export processing happens locally.
+
 ## Theme palette
 
 | UI role | Light | Dark |
@@ -86,7 +94,7 @@ Open `http://127.0.0.1:4173/sidepanel.html?demo=1`. This explicit preview uses s
 ```sh
 npm test          # State, concurrency, navigation, and tab-action regression tests
 npm run check    # Manifest, resources, CSP, IDs, and JS syntax
-npm run package  # Produces dist/arclet/ and dist/arclet-0.11.0.zip
+npm run package  # Produces dist/arclet/ and dist/arclet-0.12.0.zip
 ```
 
 After changing source files, click Reload on the extension’s card at `chrome://extensions`, then close and reopen the panel. There are no remote scripts, fonts, or build tools.
@@ -102,6 +110,7 @@ For the restart integration test, set `ARCLET_PLAYWRIGHT` to an installed Playwr
 - `src/pin-drag.js` shares pointer dragging, drop hints, cancellation, scrolling, and live-tab drop destinations.
 - `src/favorite-drag.js` adds grid hit testing for favorite ordering, including gaps and wrapped rows.
 - `src/model.js` handles defaults, safe URL parsing, colors, and search.
+- `src/transfer.js` validates the versioned interchange format, exports saved data, and plans imports before storage is changed.
 - `src/sidepanel.js` and `src/sidepanel.css` implement the UI.
 - `src/icon-picker.js` shares the searchable icon/color picker across saved pages, folders, and spaces.
 - `src/icon-catalog.js` contains Lucide 1.67.0 geometry and search tags; `src/LUCIDE-LICENSE.txt` includes its ISC and inherited Feather MIT notices. Regenerate with `node scripts/vendor-icons.mjs /path/to/unpacked/lucide-static-1.67.0/package`.

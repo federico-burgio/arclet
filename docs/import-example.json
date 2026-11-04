@@ -1,0 +1,28 @@
+{
+  "format": "arclet",
+  "version": 1,
+  "favorites": [
+    { "title": "Example", "url": "https://example.com/", "icon": "globe", "iconColor": "#477fc1" }
+  ],
+  "spaces": [
+    {
+      "name": "Reading",
+      "color": "sage",
+      "backgroundColor": null,
+      "icon": "book-open",
+      "items": [
+        { "type": "pin", "title": "Web standards", "url": "https://www.w3.org/" },
+        {
+          "type": "folder",
+          "name": "Reference",
+          "icon": "folder",
+          "collapsed": false,
+          "items": [
+            { "type": "pin", "title": "MDN", "url": "https://developer.mozilla.org/", "icon": "code", "iconColor": "#54855d" }
+          ]
+        }
+      ]
+    }
+  ],
+  "settings": { "theme": "system", "favoritesPerRow": 4, "fontScale": 100 }
+}

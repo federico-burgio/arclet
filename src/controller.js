@@ -1,6 +1,7 @@
 import { COLORS, DEFAULT_FAVORITES_PER_ROW, MAX_FAVORITES_PER_ROW, FONT_SCALES, DEFAULT_FONT_SCALE, defaultData, destination, safeSavedUrl, iconAppearance, openTabsForSpace } from './model.js';
 import { preparePersistence, reconcileWorkspace, forgetTab } from './persistence.js';
 import { normalizePinnedOrder, movePinnedItem, pinnedEntries, removePinnedFolder } from './pinned-order.js';
+import { exportData, importToken, planImport } from './transfer.js';
 
 // The worker is the only writer. Serialize commands and tab events across every open panel.
 export function createController(api, notify = () => {}) {
@@ -78,6 +79,20 @@ export function createController(api, notify = () => {}) {
     }
 
     switch (type) {
+      case 'EXPORT_DATA':
+        return { ...getState(windowId, state), exportDocument: exportData(data) };
+      case 'PREVIEW_IMPORT': {
+        const plan = planImport(data, payload.document);
+        return { ...getState(windowId, state), importPreview: { ...plan.summary, token: await importToken(data) } };
+      }
+      case 'IMPORT_DATA': {
+        if (typeof payload.token !== 'string' || payload.token !== await importToken(data)) {
+          throw new Error('Your sidebar changed since the preview. Choose the file again to review the import.');
+        }
+        const plan = planImport(data, payload.document, payload.applySettings ?? false);
+        state.data = plan.data;
+        break;
+      }
       case 'GET_STATE':
         await save(state);
         return getState(windowId, state);
