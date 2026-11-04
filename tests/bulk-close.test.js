@@ -27,7 +27,7 @@ test('broom cleanup preserves Chrome pins, Arclet pins, favorites, and other spa
   browser.change(1, { pinned: true });
   const before = await browser.run();
   const state = await browser.run('CLOSE_OPEN_TABS', { mode: 'regular', spaceId: 'personal' });
-  assert.deepEqual(await ids(browser), [1, 2, 3, 5, 7, 8, 10]);
+  assert.deepEqual(await ids(browser), [1, 2, 3, 5, 10]);
   assert.deepEqual(state.pins, before.pins);
   assert.deepEqual(state.favorites, before.favorites);
   assert.equal(browser.live.tabSpaces[1], 'personal');
@@ -47,7 +47,7 @@ test('close all affects only visible open tabs in the requested space and window
   const browser = await fixture();
   const before = await browser.run();
   const state = await browser.run('CLOSE_OPEN_TABS', { mode: 'all', spaceId: 'personal' });
-  assert.deepEqual(await ids(browser), [2, 3, 5, 7, 8, 10]);
+  assert.deepEqual(await ids(browser), [2, 3, 5, 10]);
   assert.deepEqual(state.pins, before.pins);
   assert.deepEqual(state.favorites, before.favorites);
   for (const id of [1, 4, 6, 9]) assert.equal(browser.live.tabSpaces[id], undefined);
@@ -55,7 +55,7 @@ test('close all affects only visible open tabs in the requested space and window
   for (const url of ['https://above.test/', 'https://anchor.test/', 'https://below.test/', 'https://last.test/']) assert.ok(!recorded.includes(url));
   // Repeating on an empty list is safe, and closed tabs remain restorable.
   await browser.run('CLOSE_OPEN_TABS', { mode: 'all', spaceId: 'personal' });
-  assert.deepEqual(await ids(browser), [2, 3, 5, 7, 8, 10]);
+  assert.deepEqual(await ids(browser), [2, 3, 5, 10]);
   const restored = await browser.run('RESTORE_TAB');
   assert.ok(restored.tabs.some(tab => tab.url === 'https://last.test/'));
 });
@@ -63,7 +63,7 @@ test('close all affects only visible open tabs in the requested space and window
 test('close below follows the displayed Chrome order and leaves the anchor open', async () => {
   const browser = await fixture();
   await browser.run('CLOSE_OPEN_TABS', { mode: 'below', id: 4, spaceId: 'personal' });
-  assert.deepEqual(await ids(browser), [1, 2, 3, 4, 5, 7, 8, 10]);
+  assert.deepEqual(await ids(browser), [1, 2, 3, 4, 5, 10]);
 });
 
 test('close below is a no-op for the last visible tab, including hidden rows afterward', async () => {
@@ -73,8 +73,8 @@ test('close below is a no-op for the last visible tab, including hidden rows aft
   assert.deepEqual(await ids(browser), before);
   await browser.run('REORDER_TAB', { id: 9, targetId: 4 });
   await browser.run('CLOSE_OPEN_TABS', { mode: 'below', id: 9, spaceId: 'personal' });
-  // Reordered list is 1,2,3,9,4,5,6,7,8; hidden saved pages survive.
-  assert.deepEqual((await ids(browser)).sort((a, b) => a - b), [1, 2, 3, 5, 7, 8, 9, 10]);
+  // Independent duplicates 7 and 8 are regular tabs; only owned saved instances survive.
+  assert.deepEqual((await ids(browser)).sort((a, b) => a - b), [1, 2, 3, 5, 9, 10]);
 });
 
 test('invalid or stale close-below anchors cannot close other tabs or windows', async () => {

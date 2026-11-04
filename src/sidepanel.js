@@ -5,6 +5,7 @@ import { openIconPicker } from './icon-picker.js';
 import { pinnedEntries } from './pinned-order.js';
 import { createSavedItemDrag } from './pin-drag.js';
 import { createFavoriteDrag } from './favorite-drag.js';
+import { pageSession } from './saved-tabs.js';
 
 const $ = selector => document.querySelector(selector);
 const make = (tag, className, text) => {
@@ -228,6 +229,9 @@ function renderFavorites() {
   for (const page of state.favorites) {
     const wrapper = make('div', 'favorite-wrap');
     const node = button(page.title, null, 'favorite', () => command('OPEN_PAGE', { id: page.id }));
+    const { tab: liveTab, status } = pageSession(page, state.tabs);
+    decorateSavedItem(node, page, liveTab, status);
+    node.classList.toggle('active', !!liveTab?.active);
     node.dataset.focusKey = `favorite-${page.id}`;
     node.dataset.favoriteId = page.id;
     node.addEventListener('keydown', event => {
@@ -235,16 +239,46 @@ function renderFavorites() {
       event.preventDefault();
       favoriteOrderingActions(page).find(entry => entry.label === (event.key === 'ArrowLeft' ? 'Move left' : 'Move right'))?.action();
     });
-    node.append(favicon(page));
+    node.append(favicon({ ...page, status: liveTab?.status }));
+    if (status === 'away') node.append(savedIndicator());
+    if (liveTab?.audible || liveTab?.mutedInfo?.muted) {
+      const audio = make('span', 'favorite-audio');
+      audio.append(icon(liveTab.mutedInfo?.muted ? 'muted' : 'volume'));
+      audio.setAttribute('aria-hidden', 'true');
+      node.append(audio);
+    }
     if (state.showFavoriteLabels) node.append(make('span', 'favorite-label', pageLabel(page.url)));
     bindContextMenu(node, (x, y) => openMenu(x, y, [
       { label: 'Customize icon', icon: 'palette', action: () => editPageIcon(page, 'favorite') },
       ...favoriteOrderingActions(page),
+      ...savedSessionActions(page, liveTab, status),
       { label: 'Remove favorite', icon: 'close', action: () => command('REMOVE_PAGE', { kind: 'favorite', id: page.id }) }
     ]));
     wrapper.append(node);
     grid.append(wrapper);
   }
+}
+
+function savedIndicator() {
+  const node = make('span', 'saved-status saved-status--away');
+  node.setAttribute('aria-hidden', 'true');
+  node.append(icon('corner-up-left'));
+  return node;
+}
+function decorateSavedItem(node, page, tab, status) {
+  const description = !tab ? 'Closed · opens saved URL' : `${status === 'away' ? 'Open away from saved URL' : 'Open at saved URL'}${tab.status === 'loading' ? ' · loading' : ''}${tab.audible ? ' · playing audio' : ''}${tab.mutedInfo?.muted ? ' · muted' : ''}${tab.discarded ? ' · sleeping' : ''}`;
+  node.dataset.savedStatus = status;
+  node.classList.toggle('saved-loading', tab?.status === 'loading');
+  node.title = `${page.title}\n${description}${tab ? `\n${tab.title || ''}\n${tab.url || tab.pendingUrl || ''}` : ''}\nSaved: ${page.url}`;
+  node.setAttribute('aria-description', node.title);
+}
+function savedSessionActions(page, tab, status) {
+  if (!tab) return [];
+  return [
+    ...(status === 'away' ? [{ label: 'Return to saved URL', icon: 'corner-up-left', action: () => command('RESET_SAVED_PAGE', { id: page.id }) }] : []),
+    { label: tab.mutedInfo?.muted ? 'Unmute tab' : 'Mute tab', icon: tab.mutedInfo?.muted ? 'volume' : 'muted', action: () => command('MUTE_TAB', { id: tab.id }) },
+    { label: 'Close tab', icon: 'close', action: () => command('CLOSE_SAVED_PAGE', { id: page.id }) }
+  ];
 }
 
 function favoriteOrderingActions(page) {
@@ -283,25 +317,24 @@ function bindContextMenu(node, show) {
 }
 
 function pageRow(page) {
-  const matches = state.tabs.filter(tab => tab.spaceId === page.spaceId && tab.url === page.url);
-  const liveTab = matches.find(tab => tab.active) ?? matches[0];
+  const { tab: liveTab, status } = pageSession(page, state.tabs);
   const active = Boolean(liveTab?.active);
   const row = make('div', `tab-row${active ? ' active' : ''}`);
   identifyPinnedRow(row, 'pin', page);
   const main = button(page.title, null, 'tab-main', () => command('OPEN_PAGE', { id: page.id }));
+  decorateSavedItem(main, page, liveTab, status);
   main.dataset.focusKey = `pin-${page.id}`;
-  main.append(favicon(page), make('span', 'tab-title', page.title));
-  const remove = button(`Unpin ${page.title}`, 'close', 'tab-action', () => command('REMOVE_PAGE', { kind: 'pin', id: page.id }));
-  row.append(main, remove);
+  main.append(favicon({ ...page, status: liveTab?.status }), make('span', 'tab-title', page.title));
+  if (status === 'away') main.append(savedIndicator());
+  row.append(main);
+  if (liveTab?.audible || liveTab?.mutedInfo?.muted) row.append(button(liveTab.mutedInfo?.muted ? 'Unmute tab' : 'Mute tab', liveTab.mutedInfo?.muted ? 'muted' : 'volume', 'tab-action audible', () => command('MUTE_TAB', { id: liveTab.id })));
+  if (liveTab) row.append(button(`Close ${page.title}`, 'close', 'tab-action', () => command('CLOSE_SAVED_PAGE', { id: page.id })));
   bindContextMenu(row, (x, y) => openMenu(x, y, [
     { label: 'Customize icon', icon: 'palette', action: () => editPageIcon(page, 'pin') },
     { label: 'Move to folder', icon: 'folder-input', action: () => openPinFolders(page, x, y) },
     ...orderingActions('pin', page),
     favoriteAction(page, { pageId: page.id }),
-    ...(liveTab ? [
-      { label: liveTab.mutedInfo?.muted ? 'Unmute tab' : 'Mute tab', icon: liveTab.mutedInfo?.muted ? 'volume' : 'muted', action: () => command('MUTE_TAB', { id: liveTab.id }) },
-      { label: 'Close tab', icon: 'close', action: () => command('CLOSE_TAB', { id: liveTab.id }) }
-    ] : []),
+    ...savedSessionActions(page, liveTab, status),
     { separator: true },
     { label: 'Unpin page', icon: 'pin', action: () => command('REMOVE_PAGE', { kind: 'pin', id: page.id }) }
   ]));
@@ -563,7 +596,9 @@ function renderSearch(reset = true) {
     const text = make('span', 'result-text');
     text.append(make('span', 'result-title', tab.title || 'New tab'), make('span', 'result-url', pageLabel(tab.url)));
     const space = state.spaces.find(space => space.id === tab.spaceId);
-    node.append(favicon(tab), text, make('span', 'result-space', space?.name || ''));
+    const owner = [...state.favorites, ...state.pins].find(page => page.id === tab.savedPageId);
+    if (owner) text.append(make('span', 'result-owner', `In ${owner.title}`));
+    node.append(favicon(tab), text, make('span', 'result-space', owner && !owner.spaceId ? 'Favorite' : space?.name || ''));
     list.append(node);
   });
   if (!results.length) list.append(make('p', 'no-results', query ? 'No matching tabs. Start somewhere new.' : 'Your next idea starts here.'));

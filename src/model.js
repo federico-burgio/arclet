@@ -82,7 +82,7 @@ export function matchingTabs(tabs, query) {
 }
 
 export function openTabsForSpace(tabs, pins, spaceId, favorites = []) {
-  const savedUrls = new Set([...pins.filter(page => page.spaceId === spaceId), ...favorites].map(page => page.url));
-  return tabs.filter(tab => tab.spaceId === spaceId && !savedUrls.has(tab.url || tab.pendingUrl))
+  // Worker state identifies the owned instance; matching URLs alone hide nothing.
+  return tabs.filter(tab => tab.spaceId === spaceId && !tab.savedPageId)
     .sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
 }

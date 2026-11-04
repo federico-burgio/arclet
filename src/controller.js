@@ -2,6 +2,7 @@ import { COLORS, DEFAULT_FAVORITES_PER_ROW, MAX_FAVORITES_PER_ROW, FONT_SCALES, 
 import { preparePersistence, reconcileWorkspace, forgetTab } from './persistence.js';
 import { normalizePinnedOrder, movePinnedItem, pinnedEntries, removePinnedFolder } from './pinned-order.js';
 import { exportData, importToken, planImport } from './transfer.js';
+import { savedPage, ownedTab, adoptableTab, bindSavedTab, clearSavedOwnership } from './saved-tabs.js';
 
 // The worker is the only writer. Serialize commands and tab events across every open panel.
 export function createController(api, notify = () => {}) {
@@ -52,7 +53,30 @@ export function createController(api, notify = () => {}) {
     const { data, live } = state;
     const tabs = state.tabs.filter(tab => tab.windowId === windowId);
     const spaceId = selectedSpace(data, live, windowId);
-    return { ...data, spaceId, tabs: tabs.map(tab => ({ ...tab, spaceId: live.tabSpaces[tab.id] })) };
+    return { ...data, spaceId, tabs: tabs.map(tab => ({ ...tab, spaceId: live.tabSpaces[tab.id], savedPageId: live.pageOwners[tab.id] ?? null })) };
+  }
+
+  async function rememberClosed(state, id) {
+    const snapshot = state.live.ownerSnapshots[id];
+    if (!snapshot || snapshot.incognito) return;
+    const sessions = await api.sessions.getRecentlyClosed({ maxResults: 25 }).catch(() => []);
+    const matches = sessions.filter(item => item.tab?.sessionId && item.tab.url === snapshot.url && item.tab.windowId === snapshot.windowId);
+    const session = matches.find(item => item.tab.id === id) ?? (matches.length === 1 && Math.abs(Date.now() / 1000 - matches[0].lastModified) < 3 ? matches[0] : null);
+    if (session) {
+      state.live.closedPages = state.live.closedPages.filter(record => record.sessionId !== session.tab.sessionId);
+      state.live.closedPages.unshift({ ...snapshot, sessionId: session.tab.sessionId });
+      state.live.closedPages = state.live.closedPages.slice(0, 25);
+    }
+  }
+
+  async function closeTabs(state, ids) {
+    await api.tabs.remove(ids);
+    const remaining = new Set((await api.tabs.query({})).map(tab => tab.id));
+    for (const id of Array.isArray(ids) ? ids : [ids]) {
+      if (remaining.has(id)) continue; // Chrome may cancel a close at a beforeunload prompt.
+      await rememberClosed(state, id);
+      forgetTab(state, id);
+    }
   }
 
   async function run(message) {
@@ -76,6 +100,7 @@ export function createController(api, notify = () => {}) {
       live.windowSpaces[windowId] = targetSpace;
       live.fixedTabs[tab.id] = true;
       live.noRecovery[tab.id] = true;
+      live.ownerKnown[tab.id] = true;
       return tab;
     }
 
@@ -181,13 +206,12 @@ export function createController(api, notify = () => {}) {
       case 'ACTIVATE_TAB': {
         const tab = await tabInWindow(payload.id);
         await api.tabs.update(tab.id, { active: true });
-        live.windowSpaces[windowId] = live.tabSpaces[tab.id] ?? spaceId;
+        if (savedPage(data, live.pageOwners[tab.id])?.spaceId || !live.pageOwners[tab.id]) live.windowSpaces[windowId] = live.tabSpaces[tab.id] ?? spaceId;
         break;
       }
       case 'CLOSE_TAB':
         await tabInWindow(payload.id);
-        await api.tabs.remove(payload.id);
-        forgetTab(state, payload.id);
+        await closeTabs(state, payload.id);
         break;
       case 'CLOSE_REGULAR_TAB': {
         const tab = await tabInWindow(payload.id);
@@ -195,8 +219,7 @@ export function createController(api, notify = () => {}) {
         if (tab.pinned || !visible.some(item => item.id === tab.id)) {
           throw new Error('Pinned and favorite tabs cannot be closed with middle-click.');
         }
-        await api.tabs.remove(tab.id);
-        forgetTab(state, tab.id);
+        await closeTabs(state, tab.id);
         break;
       }
       case 'RELOAD_ACTIVE_TAB': {
@@ -227,8 +250,7 @@ export function createController(api, notify = () => {}) {
           targets = targets.slice(index + 1);
         }
         if (targets.length) {
-          await api.tabs.remove(targets.map(tab => tab.id));
-          targets.forEach(tab => forgetTab(state, tab.id));
+          await closeTabs(state, targets.map(tab => tab.id));
         }
         break;
       }
@@ -251,6 +273,9 @@ export function createController(api, notify = () => {}) {
       case 'MOVE_TAB':
         await tabInWindow(payload.id);
         requireSpace(data, payload.spaceId);
+        if (savedPage(data, live.pageOwners[payload.id])?.spaceId && savedPage(data, live.pageOwners[payload.id]).spaceId !== payload.spaceId) {
+          throw new Error('Unpin this page before moving its running tab to another space.');
+        }
         live.tabSpaces[payload.id] = payload.spaceId;
         live.fixedTabs[payload.id] = true;
         break;
@@ -288,25 +313,36 @@ export function createController(api, notify = () => {}) {
             targetId: payload.targetId, targetKind: payload.targetKind, placement: payload.placement });
         }
         if (folder) folder.collapsed = false;
+        if (!payload.pageId && !live.pageOwners[source.id]) bindSavedTab(state, page, source);
         break;
       }
       case 'REMOVE_PAGE': {
         const key = payload.kind === 'favorite' ? 'favorites' : 'pins';
+        clearSavedOwnership(state, payload.id);
         data[key] = data[key].filter(page => page.id !== payload.id);
         break;
       }
-      case 'OPEN_PAGE': {
-        const page = [...data.favorites, ...data.pins].find(page => page.id === payload.id);
+      case 'OPEN_PAGE':
+      case 'RESET_SAVED_PAGE':
+      case 'CLOSE_SAVED_PAGE': {
+        const page = savedPage(data, payload.id);
         if (!page) throw new Error('This page is no longer saved.');
         const url = safeSavedUrl(page.url);
-        const tabs = await api.tabs.query({ windowId });
         const targetSpace = page.spaceId ?? spaceId;
-        const existing = tabs.find(tab => tab.url === url &&
-          (live.tabSpaces[tab.id] ?? spaceId) === targetSpace);
+        let existing = ownedTab(state, page.id, windowId);
+        if (type === 'CLOSE_SAVED_PAGE') {
+          if (existing) await closeTabs(state, existing.id);
+          break;
+        }
+        if (!existing) existing = adoptableTab(state, page, windowId);
         if (existing) {
-          await api.tabs.update(existing.id, { active: true });
+          await api.tabs.update(existing.id, { active: true, ...(type === 'RESET_SAVED_PAGE' ? { url } : {}) });
+          bindSavedTab(state, page, existing);
           live.windowSpaces[windowId] = targetSpace;
-        } else await createTab(url, targetSpace);
+        } else {
+          const tab = await createTab(url, targetSpace);
+          bindSavedTab(state, page, tab);
+        }
         break;
       }
       case 'RESTORE_TAB': {
@@ -314,6 +350,8 @@ export function createController(api, notify = () => {}) {
         const recent = sessions.find(item => item.tab?.sessionId);
         if (!recent) throw new Error('No recently closed tabs to restore.');
         const restored = await api.sessions.restore(recent.tab.sessionId);
+        const record = live.closedPages.find(record => record.sessionId === recent.tab.sessionId);
+        live.closedPages = live.closedPages.filter(record => record.sessionId !== recent.tab.sessionId);
         // Restore can select a different window; move only the requested restored tab here.
         if (restored.tab) {
           const id = restored.tab.id;
@@ -322,6 +360,12 @@ export function createController(api, notify = () => {}) {
           live.tabSpaces[id] = spaceId;
           live.fixedTabs[id] = true;
           live.noRecovery[id] = true;
+          live.ownerKnown[id] = true;
+          const page = record && savedPage(data, record.pageId);
+          if (page && !ownedTab(state, page.id, windowId)) {
+            bindSavedTab(state, page, { ...restored.tab, windowId });
+            if (page.spaceId) live.windowSpaces[windowId] = page.spaceId;
+          }
         }
         break;
       }
@@ -375,6 +419,7 @@ export function createController(api, notify = () => {}) {
     dispatch: message => queue(() => run(message)),
     tabCreated: tab => queue(async () => {
       const state = await load();
+      state.live.ownerKnown[tab.id] = true;
       if (tab.openerTabId && state.live.tabKeys[tab.openerTabId]) {
         state.live.noRecovery[tab.id] = true;
         state.live.tabSpaces[tab.id] ??= state.live.tabSpaces[tab.openerTabId];
@@ -391,7 +436,14 @@ export function createController(api, notify = () => {}) {
         delete state.live.tabKeys[id];
         delete state.live.fixedTabs[id];
         delete state.live.noRecovery[id];
-      } else forgetTab(state, id);
+        delete state.live.pageOwners[id];
+        delete state.live.ownerKnown[id];
+        delete state.live.ownerWindows[id];
+        delete state.live.ownerSnapshots[id];
+      } else {
+        await rememberClosed(state, id);
+        forgetTab(state, id);
+      }
       await synchronize(state);
       await save(state);
       notify();
@@ -399,7 +451,7 @@ export function createController(api, notify = () => {}) {
     tabReplaced: (added, removed) => queue(async () => {
       const state = await load();
       if (state.live.tabSpaces[removed]) state.live.tabSpaces[added] = state.live.tabSpaces[removed];
-      for (const key of ['tabKeys', 'fixedTabs', 'noRecovery']) {
+      for (const key of ['tabKeys', 'fixedTabs', 'noRecovery', 'pageOwners', 'ownerKnown', 'ownerWindows', 'ownerSnapshots']) {
         if (state.live[key][removed]) state.live[key][added] = state.live[key][removed];
         delete state.live[key][removed];
       }
@@ -419,7 +471,8 @@ export function createController(api, notify = () => {}) {
       const state = await load();
       await synchronize(state);
       const spaceId = state.live.tabSpaces[tabId];
-      if (state.data.spaces.some(space => space.id === spaceId)) {
+      const page = savedPage(state.data, state.live.pageOwners[tabId]);
+      if ((!page || page.spaceId) && state.data.spaces.some(space => space.id === spaceId)) {
         state.live.windowSpaces[windowId] = spaceId;
       }
       await synchronize(state);

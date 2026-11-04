@@ -98,7 +98,7 @@ All settings are optional. They are validated when present, but applied **only i
 4. If multiple existing spaces or folders match a name, the import is rejected with an instruction to rename one. It does not guess which to use.
 5. Reimporting the same file does not create duplicate spaces, folders, or saved URLs. The preview reports new and merged records and the number of existing URLs skipped.
 6. If saved sidebar data or preferences change after preview, confirmation is rejected. Choose the file again to review a fresh preview. Live tab navigation alone does not invalidate a preview.
-7. Import does not create, navigate, close, reassign, or activate browser tabs. Existing live tabs matching newly imported saved pages will be represented by those favorites/pins instead of appearing twice in the Open tabs list.
+7. Import does not create, navigate, close, reassign, or activate browser tabs. Imported saved items start closed. Opening one can adopt an eligible unassociated tab at its saved URL; import itself does not take ownership of live tabs.
 
 ## Export scope
 

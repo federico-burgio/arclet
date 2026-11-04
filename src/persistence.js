@@ -1,5 +1,7 @@
 // Chrome tab/window IDs last only for a browser session. Keep a separate checkpoint
 // of URLs and tab order, and consume its records one-to-one as Chrome restores tabs.
+import { reconcileSavedTabs } from './saved-tabs.js';
+
 const emptyPage = url => !url || ['about:blank', 'chrome://newtab/', 'chrome://newtab', 'chrome://new-tab-page/'].includes(url);
 const urls = tab => [...new Set([tab.pendingUrl, tab.url].filter(Boolean))];
 const samePage = (left, right) => urls(left).some(url => urls(right).includes(url));
@@ -13,6 +15,12 @@ export function preparePersistence(state) {
   live.noRecovery ??= {};
   live.fixedWindows ??= {};
   live.closingWindows ??= {};
+  live.pageOwners ??= {};
+  live.ownerKnown ??= {};
+  live.ownerWindows ??= {};
+  live.ownerSnapshots ??= {};
+  live.closedPages ??= [];
+  live.legacyOwnerCandidates ??= {};
   if (!live.recovery) {
     live.recovery = { windows: structuredClone(workspace.windows), bindings: {}, used: {} };
     // Upgrade an already-running 0.1 browser session without losing its assignments.
@@ -65,6 +73,9 @@ function bindWindows(state, windows) {
       // Discard the provisional checkpoint made before this window had its URLs.
       workspace.windows = workspace.windows.filter(window => window.key !== previousKey);
     }
+    const alternatives = recovery.windows.filter(other => other.key !== saved.key && Math.abs(overlap(windows.get(id), other.tabs) - overlap(windows.get(id), saved.tabs)) < .001);
+    recovery.ambiguousWindows ??= {};
+    recovery.ambiguousWindows[id] = alternatives.length > 0;
     recovery.bindings[id] = saved.key;
     live.windowKeys[id] = saved.key;
     if (!live.fixedWindows[id]) live.windowSpaces[id] = validSpace(state.data, saved.spaceId);
@@ -95,6 +106,16 @@ function recoverTabs(state, id, current) {
     const tab = matches[0];
     live.tabKeys[tab.id] = record.key;
     if (!live.fixedTabs[tab.id]) live.tabSpaces[tab.id] = validSpace(data, record.spaceId);
+    if (Object.hasOwn(record, 'savedPageId')) {
+      live.ownerKnown[tab.id] = true;
+      if (record.savedPageId && matches.length === 1 && duplicates.length === 1 && !recovery.ambiguousWindows?.[id]) {
+        live.pageOwners[tab.id] = record.savedPageId;
+        live.ownerWindows[tab.id] = id;
+      }
+    } else {
+      live.legacyOwnerCandidates[tab.id] = true;
+      delete live.ownerKnown[tab.id];
+    }
     recovery.used[record.key] = true;
     candidates.splice(candidates.indexOf(tab), 1);
   }
@@ -119,12 +140,15 @@ export function reconcileWorkspace(state, tabs) {
       live.tabSpaces[tab.id] = validSpace(data, live.tabSpaces[tab.id] ?? live.tabSpaces[tab.openerTabId] ?? live.windowSpaces[id]);
     }
     live.windowSpaces[id] = validSpace(data, live.windowSpaces[id]);
+  }
+  reconcileSavedTabs(state, [...windows.values()].flat());
+  for (const [id, current] of windows) {
     // Never put incognito URLs into persistent storage, even if the extension is
     // explicitly enabled in a private window.
     const records = current.filter(tab => !tab.incognito).map(tab => ({
       key: live.tabKeys[tab.id], spaceId: live.tabSpaces[tab.id],
       url: tab.url || '', ...(tab.pendingUrl ? { pendingUrl: tab.pendingUrl } : {}),
-      index: tab.index, pinned: Boolean(tab.pinned)
+      index: tab.index, pinned: Boolean(tab.pinned), savedPageId: live.pageOwners[tab.id] ?? null
     }));
     if (!records.length) continue;
     const saved = live.recovery.windows.find(window => window.key === live.recovery.bindings[id]);
@@ -164,4 +188,9 @@ export function forgetTab(state, id) {
   delete state.live.tabKeys[id];
   delete state.live.fixedTabs[id];
   delete state.live.noRecovery[id];
+  delete state.live.pageOwners[id];
+  delete state.live.ownerKnown[id];
+  delete state.live.ownerWindows[id];
+  delete state.live.ownerSnapshots[id];
+  delete state.live.legacyOwnerCandidates[id];
 }

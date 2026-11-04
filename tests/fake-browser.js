@@ -34,6 +34,7 @@ export function fakeBrowser(initial = []) {
         if (change.active) current.filter(other => other.windowId === tab.windowId).forEach(other => { other.active = false; });
         if ('muted' in change) tab.mutedInfo = { muted: change.muted };
         if ('active' in change) tab.active = change.active;
+        if ('url' in change) { tab.url = change.url; delete tab.pendingUrl; }
         return clone(tab);
       },
       remove: async ids => {

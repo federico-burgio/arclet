@@ -138,7 +138,8 @@ test('pinning a live tab at a drop anchor is atomic and does not reorder Chrome 
   const newPin = state.pins.at(-1);
   const root = order(state);
   assert.equal(root[root.indexOf(first.id) - 1], newPin.id);
-  assert.deepEqual(state.tabs, before.tabs);
+  assert.deepEqual(state.tabs.map(({ savedPageId, ...tab }) => tab), before.tabs.map(({ savedPageId, ...tab }) => tab));
+  assert.equal(state.tabs.find(tab => tab.id === 4).savedPageId, newPin.id);
 });
 
 test('serialized stale-panel moves preserve all pins without overwriting sibling order', async () => {

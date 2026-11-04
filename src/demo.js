@@ -76,6 +76,14 @@ export function createDemoApi({ savedDataStore } = {}) {
         if (change.active) tabs.filter(other => other.windowId === tab.windowId).forEach(other => { other.active = false; });
         if ('muted' in change) tab.mutedInfo = { muted: change.muted };
         if ('active' in change) tab.active = change.active;
+        if ('url' in change) {
+          const history = histories.get(id) ?? { index: 0, entries: [{ url: tab.url, title: tab.title }] };
+          history.entries.splice(history.index + 1);
+          history.entries.push({ url: change.url, title: new URL(change.url).hostname });
+          history.index++;
+          histories.set(id, history);
+          Object.assign(tab, history.entries[history.index]);
+        }
         return clone(tab);
       },
       remove: async ids => {
@@ -108,6 +116,7 @@ export function createDemoApi({ savedDataStore } = {}) {
         const old = closed.splice(index, 1)[0].tab;
         const tab = await api.tabs.create({ windowId: old.windowId, url: old.url, active: true });
         find(tab.id).title = old.title;
+        if (histories.has(old.id)) histories.set(tab.id, clone(histories.get(old.id)));
         return { tab: clone(find(tab.id)) };
       }
     }
