@@ -151,6 +151,15 @@ function applyState(next) {
   document.documentElement.style.setProperty('--font-scale', state.fontScale / 100);
   applyTheme();
   $('#search-toolbar').hidden = !state.showSearchBar;
+  const toolbar = $('#search-toolbar');
+  if (toolbar.dataset.controlsPosition !== state.pageControlsPosition) {
+    const focused = document.activeElement;
+    const controls = ['#back-page', '#forward-page', '#refresh-page', '#copy-url'].map($);
+    const search = $('#search-button');
+    toolbar.dataset.controlsPosition = state.pageControlsPosition;
+    toolbar.replaceChildren(...(state.pageControlsPosition === 'right' ? [search, ...controls] : [...controls, search]));
+    if (toolbar.contains(focused)) focused.focus({ preventScroll: true });
+  }
   updatePageActions();
   const space = state.spaces.find(space => space.id === state.spaceId);
   $('#space-name').textContent = space.name;

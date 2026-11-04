@@ -72,6 +72,7 @@ function applyState(next) {
   document.documentElement.style.setProperty('--font-scale', state.fontScale / 100);
   applyTheme();
   $('#show-search-bar').checked = state.showSearchBar;
+  $('#page-controls-position').value = state.pageControlsPosition;
   $('#show-favorite-labels').checked = state.showFavoriteLabels;
   $('#favorites-per-row').value = String(state.favoritesPerRow);
   $('#font-size').value = String(state.fontScale);
@@ -203,6 +204,13 @@ $('#show-search-bar').addEventListener('change', async event => {
   const ok = await command('SET_SEARCH_VISIBILITY', { visible: toggle.checked });
   toggle.disabled = false;
   if (!ok) toggle.checked = state.showSearchBar;
+});
+$('#page-controls-position').addEventListener('change', async event => {
+  const select = event.currentTarget;
+  select.disabled = true;
+  const ok = await command('SET_PAGE_CONTROLS_POSITION', { position: select.value });
+  select.disabled = false;
+  if (!ok) select.value = state.pageControlsPosition;
 });
 $('#show-favorite-labels').addEventListener('change', async event => {
   const toggle = event.currentTarget;

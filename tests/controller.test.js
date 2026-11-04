@@ -243,3 +243,21 @@ test('a closed pinned page can become a favorite without opening a tab', async (
   browser.local.data.pins.push({ id: 'unsafe', url: 'javascript:alert(1)', title: 'Unsafe', spaceId: 'personal' });
   await assert.rejects(browser.run('SAVE_PAGE', { kind: 'favorite', pageId: 'unsafe' }), /http and https/);
 });
+
+test('page control placement upgrades older settings, persists across windows and restarts, and rejects invalid values', async () => {
+  const browser = fakeBrowser([tab(1, 'https://a.test/')]);
+  delete browser.local.data.pageControlsPosition;
+  assert.equal((await browser.run()).pageControlsPosition, 'left');
+  await browser.run('SET_PAGE_CONTROLS_POSITION', { position: 'right' });
+  assert.equal((await browser.run('GET_STATE', {}, 2)).pageControlsPosition, 'right');
+  await browser.run('SET_SEARCH_VISIBILITY', { visible: false });
+  browser.restart([tab(11, 'https://a.test/')]);
+  assert.equal((await browser.run()).pageControlsPosition, 'right');
+  await browser.run('SET_SEARCH_VISIBILITY', { visible: true });
+  assert.equal((await browser.run()).pageControlsPosition, 'right');
+  for (const position of [undefined, null, false, 0, 'Right', 'bottom', {}]) {
+    await assert.rejects(browser.run('SET_PAGE_CONTROLS_POSITION', { position }), /left or right/);
+    assert.equal((await browser.run()).pageControlsPosition, 'right');
+  }
+  assert.equal((await browser.run('SET_PAGE_CONTROLS_POSITION', { position: 'left' })).pageControlsPosition, 'left');
+});

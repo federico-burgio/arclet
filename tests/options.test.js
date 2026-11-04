@@ -10,7 +10,7 @@ const sender = path => ({ id: runtime.id, url: runtime.getURL(path) });
 
 test('settings with section hashes can read and change preferences, import, and export', () => {
   for (const path of ['options.html', 'options.html#appearance', 'options.html#sidebar', 'options.html#import-export', 'options.html#about']) {
-    for (const type of ['GET_STATE', 'SET_THEME', 'SET_BACKGROUND_COLOR', 'SET_FONT_SCALE', 'SET_FAVORITES_PER_ROW', 'SET_SEARCH_VISIBILITY', 'SET_FAVORITE_LABELS', 'PREVIEW_IMPORT', 'IMPORT_DATA', 'EXPORT_DATA']) {
+    for (const type of ['GET_STATE', 'SET_THEME', 'SET_BACKGROUND_COLOR', 'SET_FONT_SCALE', 'SET_FAVORITES_PER_ROW', 'SET_SEARCH_VISIBILITY', 'SET_PAGE_CONTROLS_POSITION', 'SET_FAVORITE_LABELS', 'PREVIEW_IMPORT', 'IMPORT_DATA', 'EXPORT_DATA']) {
       assert.equal(canHandleMessage(runtime, { type }, sender(path)), true, `${path}: ${type}`);
     }
   }

@@ -28,6 +28,7 @@ export function defaultData() {
     theme: 'system',
     backgroundColor: null,
     showSearchBar: true,
+    pageControlsPosition: 'left',
     showFavoriteLabels: true,
     favoritesPerRow: DEFAULT_FAVORITES_PER_ROW,
     fontScale: DEFAULT_FONT_SCALE

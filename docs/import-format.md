@@ -85,6 +85,7 @@ All settings are optional. They are validated when present, but applied **only i
 | `theme` | `"system"`, `"light"`, `"dark"` |
 | `backgroundColor` | Six-digit hex color or null |
 | `showSearchBar` | Boolean |
+| `pageControlsPosition` | `"left"` or `"right"`; if omitted, keep the current position |
 | `showFavoriteLabels` | Boolean |
 | `favoritesPerRow` | Integer 1–8 |
 | `fontScale` | `90`, `100`, `110`, `125`, `150` |

@@ -28,7 +28,7 @@ test('export/import round trip preserves mixed root order, folder children, icon
       folder('Books', [pin('https://b.test/'), pin('https://a.test/', { icon: 'code', iconColor: '#ff0000' })], { collapsed: true, icon: 'library', iconColor: '#112233' }),
       pin('https://root.test/'), folder('Empty'), pin('https://last.test/')
     ] }],
-    settings: { theme: 'dark', backgroundColor: '#123456', showSearchBar: false, showFavoriteLabels: false, favoritesPerRow: 8, fontScale: 150 }
+    settings: { theme: 'dark', backgroundColor: '#123456', showSearchBar: false, pageControlsPosition: 'right', showFavoriteLabels: false, favoritesPerRow: 8, fontScale: 150 }
   });
   const empty = { ...defaultData(), spaces: [] };
   const data = planImport(empty, source, true).data;
@@ -175,4 +175,16 @@ test('failed local storage write leaves existing saved data intact and import ca
   assert.deepEqual(browser.local, before);
   browser.api.storage.local.set = save;
   assert.equal((await browser.run('IMPORT_DATA', { document: example, token: preview.token })).pins.length, 2);
+});
+
+test('page control placement exports and imports as an optional appearance setting', () => {
+  const data = { ...defaultData(), pageControlsPosition: 'right' };
+  const document = exportData(data);
+  assert.equal(document.settings.pageControlsPosition, 'right');
+  assert.equal(planImport(defaultData(), document).data.pageControlsPosition, 'left');
+  assert.equal(planImport(defaultData(), document, true).data.pageControlsPosition, 'right');
+  delete document.settings.pageControlsPosition;
+  assert.equal(planImport(data, document, true).data.pageControlsPosition, 'right');
+  document.settings.pageControlsPosition = 'bottom';
+  assert.throws(() => normalizeImport(document), /left or right/);
 });

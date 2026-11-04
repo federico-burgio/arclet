@@ -5,7 +5,7 @@ export const TRANSFER_FORMAT = 'arclet';
 export const TRANSFER_VERSION = 1;
 export const MAX_TRANSFER_BYTES = 5 * 1024 * 1024;
 const MAX_RECORDS = 10000;
-const SETTINGS = ['theme', 'backgroundColor', 'showSearchBar', 'showFavoriteLabels', 'favoritesPerRow', 'fontScale'];
+const SETTINGS = ['theme', 'backgroundColor', 'showSearchBar', 'pageControlsPosition', 'showFavoriteLabels', 'favoritesPerRow', 'fontScale'];
 const PAGE_FIELDS = ['url', 'title', 'icon', 'iconColor'];
 const fail = (path, message) => { throw new Error(`${path}: ${message}`); };
 function object(value, path, fields) {
@@ -111,6 +111,7 @@ export function normalizeImport(document) {
     for (const key of Object.keys(value)) {
       const entry = value[key];
       if (key === 'theme' && !['system', 'light', 'dark'].includes(entry)) fail(`settings.${key}`, 'choose system, light, or dark.');
+      if (key === 'pageControlsPosition' && !['left', 'right'].includes(entry)) fail(`settings.${key}`, 'choose left or right.');
       if (key === 'favoritesPerRow' && (!Number.isInteger(entry) || entry < 1 || entry > MAX_FAVORITES_PER_ROW)) fail(`settings.${key}`, 'choose an integer from 1 to 8.');
       if (key === 'fontScale' && !FONT_SCALES.includes(entry)) fail(`settings.${key}`, 'choose 90, 100, 110, 125, or 150.');
       if ((key === 'showSearchBar' || key === 'showFavoriteLabels') && typeof entry !== 'boolean') fail(`settings.${key}`, 'expected true or false.');

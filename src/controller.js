@@ -19,6 +19,7 @@ export function createController(api, notify = () => {}) {
     const data = local.data ?? defaultData();
     data.backgroundColor ??= null;
     data.showSearchBar ??= true;
+    data.pageControlsPosition ??= 'left';
     data.showFavoriteLabels ??= true;
     data.favoritesPerRow ??= DEFAULT_FAVORITES_PER_ROW;
     data.fontScale ??= DEFAULT_FONT_SCALE;
@@ -333,6 +334,10 @@ export function createController(api, notify = () => {}) {
           throw new Error('Choose a valid background color, or use the theme default.');
         }
         data.backgroundColor = payload.color?.toLowerCase() ?? null;
+        break;
+      case 'SET_PAGE_CONTROLS_POSITION':
+        if (!['left', 'right'].includes(payload.position)) throw new Error('Choose left or right for the page controls.');
+        data.pageControlsPosition = payload.position;
         break;
       case 'SET_SEARCH_VISIBILITY':
         if (typeof payload.visible !== 'boolean') throw new Error('Choose whether to show the search bar.');

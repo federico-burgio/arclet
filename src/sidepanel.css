@@ -45,6 +45,7 @@
   .brand-mark { display: block; width: 32px; height: 32px; flex-shrink: 0; }
   .favorites-section { padding-top: 23px; padding-bottom: 23px; max-height: 35dvh; overflow-y: auto; scrollbar-width: thin; }
   .search-toolbar { display: grid; grid-template-columns: repeat(4, 28px) minmax(0, 1fr); align-items: center; gap: 5px; }
+  .search-toolbar[data-controls-position="right"] { grid-template-columns: minmax(0, 1fr) repeat(4, 28px); }
   .search-toolbar[hidden] + .favorites-section { padding-top: 0; }
   .favorites-section[hidden] + .space-folder { margin-top: 16px; }
   .search-toolbar[hidden] + .favorites-section[hidden] + .space-folder { margin-top: 0; }
@@ -88,7 +89,6 @@
   .tab-row { display: flex; align-items: center; min-height: 37px; border-radius: 8px; gap: 1px; position: relative; }
   .tab-row:hover { background: var(--hover); }
   .tab-row.active { background: var(--active); box-shadow: 0 2px 4px rgb(27 30 35 / .025); }
-  .tab-row.active::before { content: ''; position: absolute; height: 13px; width: 2px; background: var(--accent); border-radius: 3px; left: 0; }
   .tab-main { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; text-align: left; padding: 10px; min-height: 37px; border-radius: 8px; }
   .tab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.846154rem; letter-spacing: -.05px; }
   .tab-row.discarded .tab-title { opacity: .55; }

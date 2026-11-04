@@ -21,7 +21,7 @@
     <button type="button" role="tab" id="tab-import-export" aria-controls="import-export" aria-selected="false" tabindex="-1"><span data-icon="arrow-left-right"></span>Import &amp; export</button>
     <button type="button" role="tab" id="tab-about" aria-controls="about" aria-selected="false" tabindex="-1"><span data-icon="circle-question-mark"></span>Help &amp; about</button>
    </div>
-   <p class="settings-nav-note">Settings<br><span data-version>Arclet 0.13.0</span></p>
+   <p class="settings-nav-note">Settings<br><span data-version>Arclet 0.14.0</span></p>
   </aside>
   <main class="settings-main">
    <p id="preview-note" class="preview-note" hidden>Preview mode · sample data, separate from your extension</p>
@@ -59,6 +59,10 @@
           <div><label for="show-search-bar">Show search bar</label><p id="search-bar-help">Search is always available with the keyboard shortcut.</p></div>
           <input id="show-search-bar" type="checkbox" role="switch" aria-describedby="search-bar-help" checked>
         </div>
+        <div class="settings-toggle settings-select">
+          <div><label for="page-controls-position">Page controls position</label><p id="page-controls-help">Place Back, Forward, Refresh, and Copy URL to the left or right of the search bar.</p></div>
+          <select id="page-controls-position" aria-describedby="page-controls-help"><option value="left">Left</option><option value="right">Right</option></select>
+        </div>
         <div class="settings-toggle">
           <div><label for="show-favorite-labels">Show favorite labels</label><p id="favorite-labels-help">Display site names below favorite icons.</p></div>
           <input id="show-favorite-labels" type="checkbox" role="switch" aria-describedby="favorite-labels-help" checked>
@@ -94,7 +98,7 @@
       <p class="fine-print">For a left sidebar, choose Left in Chrome’s side panel appearance settings. Chrome’s tab strip stays visible. Tabs return to their spaces when Chrome restores your previous session. Enable “Continue where you left off” in Chrome’s startup settings.</p>
       <p class="fine-print">Outline icons by Lucide, bundled on this device. ISC / MIT licenses included.</p>
       <p class="transfer-links about-links"><a href="https://github.com/federico-burgio/arclet" target="_blank" rel="noopener noreferrer">GitHub</a> · <a href="https://github.com/federico-burgio/arclet/releases" target="_blank" rel="noopener noreferrer">Releases</a></p>
-      <div class="settings-brand"><img class="brand-mark" src="icons/mark.svg" alt="" width="32" height="32"><div>Arclet <span data-version-number>0.13.0</span><p>Inspired by Arc. Independently made.</p></div></div>
+      <div class="settings-brand"><img class="brand-mark" src="icons/mark.svg" alt="" width="32" height="32"><div>Arclet <span data-version-number>0.14.0</span><p>Inspired by Arc. Independently made.</p></div></div>
 
    </section>
    <p id="save-status" class="save-status" role="status" aria-live="polite"><span data-icon="check"></span><span id="save-status-text">Loading settings…</span></p>
