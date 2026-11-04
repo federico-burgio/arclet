@@ -1,0 +1,14 @@
+{
+  "name": "arclet",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "description": "An Arc-inspired, local-first Chrome sidebar.",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "check": "node scripts/check.mjs",
+    "preview": "node scripts/preview.mjs",
+    "package": "node scripts/package.mjs"
+  },
+  "engines": { "node": ">=20" }
+}

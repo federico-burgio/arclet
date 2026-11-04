@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#e0e2e5">
+    <title>Arclet</title>
+    <link rel="icon" href="icons/icon-32.png">
+    <link rel="stylesheet" href="src/sidepanel.css">
+    <script type="module" src="src/sidepanel.js"></script>
+  </head>
+  <body>
+    <main class="sidebar" aria-label="Arclet tab manager">
+      <button id="search-button" class="search-launcher" aria-label="Search tabs or enter a URL">
+        <span data-icon="search"></span><span>Search or enter a URL</span><kbd id="search-shortcut">⌘ K</kbd>
+      </button>
+
+      <section class="favorites-section" aria-label="Favorites">
+        <div id="favorites" class="favorites"></div>
+      </section>
+
+      <section class="space-folder" aria-labelledby="space-name">
+        <h1 id="space-name" class="sr-only">Your space</h1>
+        <div class="folder-content">
+          <div class="content-scroll">
+            <section class="pins-section" aria-label="Pinned pages">
+              <div id="pins" class="tab-list"></div>
+            </section>
+
+            <div id="pins-divider" class="divider"></div>
+
+            <section class="tabs-section" aria-label="Open tabs">
+              <button id="new-tab" class="new-tab"><span data-icon="plus"></span>New tab <kbd>⌘ K</kbd></button>
+              <div id="tabs" class="tab-list"></div>
+              <div id="empty-tabs" class="empty-tabs" hidden><span data-icon="sprout"></span><p>A little room to think.</p><span>Open a tab and make this space yours.</span></div>
+            </section>
+          </div>
+          <div class="footer-note"><span class="status-dot"></span><span id="footer-note">A space for a clearer mind.</span></div>
+        </div>
+        <footer>
+          <div class="footer-toolbar">
+            <nav class="spaces-bar" aria-label="Spaces"><div id="spaces" class="spaces"></div><span class="spaces-divider"></span><button id="add-space" class="icon-button" title="Create a space" aria-label="Create a space" data-icon="plus"></button></nav>
+            <button id="settings-button" class="icon-button" title="Settings" aria-label="Settings" data-icon="sliders"></button>
+          </div>
+        </footer>
+      </section>
+    </main>
+
+    <dialog id="search-dialog" class="search-dialog" aria-label="Search tabs or open a page">
+      <form id="search-form" autocomplete="off">
+        <div class="command-input"><span data-icon="search"></span><input id="search-input" type="text" placeholder="Where would you like to go?" aria-label="Search tabs or enter a URL" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-controls="search-results"><button type="button" class="escape" id="close-search" aria-label="Close search">esc</button></div>
+        <div class="command-label">SWITCH TO A TAB</div>
+        <div id="search-results" class="search-results" role="listbox"></div>
+        <button type="submit" id="open-search" class="search-open"><span data-icon="plus"></span><span id="search-action">Open a new tab</span><span class="enter-hint">↵</span></button>
+        <div class="command-footer"><span><kbd>↑</kbd><kbd>↓</kbd> to navigate</span><span><kbd>↵</kbd> to open</span></div>
+      </form>
+    </dialog>
+
+    <dialog id="space-dialog" class="sheet" aria-labelledby="space-dialog-title">
+      <form id="space-form">
+        <div class="sheet-header"><h2 id="space-dialog-title">A new space</h2><button type="button" class="icon-button" data-close="space-dialog" aria-label="Close" data-icon="close"></button></div>
+        <p class="sheet-description">A place for each part of your day.</p>
+        <label for="space-input">Name</label><input id="space-input" class="text-input" maxlength="32" placeholder="e.g. Side projects" required>
+        <fieldset><legend>Background color</legend><div id="color-options" class="color-options"></div></fieldset>
+        <fieldset><legend>Icon &amp; color</legend><button type="button" id="space-appearance" class="appearance-button"></button></fieldset>
+        <div class="sheet-actions"><button type="button" id="delete-space" class="text-button danger">Delete space</button><button class="primary-button" type="submit" id="save-space">Create space</button></div>
+        <p id="space-delete-note" class="fine-print" hidden>Deleting a space moves its tabs, pinned pages, and folders to your first space.</p>
+      </form>
+    </dialog>
+
+    <dialog id="folder-dialog" class="sheet" aria-labelledby="folder-dialog-title">
+      <form id="folder-form">
+        <div class="sheet-header"><h2 id="folder-dialog-title">New pinned folder</h2><button type="button" class="icon-button" data-close="folder-dialog" aria-label="Close folder editor" data-icon="close"></button></div>
+        <p class="sheet-description">Keep related pinned pages together.</p>
+        <label for="folder-input">Name</label><input id="folder-input" class="text-input" maxlength="64" placeholder="e.g. Inspiration" required>
+        <fieldset><legend>Icon &amp; color</legend><button type="button" id="folder-appearance" class="appearance-button"></button></fieldset>
+        <div class="sheet-actions"><button type="button" class="text-button" data-close="folder-dialog">Cancel</button><button class="primary-button" type="submit" id="save-folder">Create folder</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="icon-dialog" class="sheet icon-picker" aria-labelledby="icon-dialog-title">
+      <div class="sheet-header"><h2 id="icon-dialog-title">Choose an icon</h2><button class="icon-button" data-close="icon-dialog" aria-label="Close icon picker" data-icon="close"></button></div>
+      <p id="icon-library-note" class="sheet-description"></p>
+      <div class="icon-preview" id="icon-preview"></div>
+      <button type="button" id="use-site-icon" class="site-icon-option">Use site icon</button>
+      <label for="icon-search" class="sr-only">Search icons</label><input id="icon-search" class="text-input" type="search" placeholder="Search icons, e.g. folder, music, code" autocomplete="off">
+      <p id="icon-result-count" class="fine-print" role="status"></p>
+      <div id="icon-grid" class="icon-grid" role="group" aria-label="Icon library"></div>
+      <button type="button" id="more-icons" class="load-icons">Show more icons</button>
+      <fieldset class="icon-colors"><legend>Icon color</legend><div id="icon-colors" class="color-options" role="group" aria-label="Icon colors"></div><label class="custom-color">Custom color<input id="icon-custom-color" type="color" value="#667180"></label></fieldset>
+      <div class="sheet-actions"><button type="button" class="text-button" data-close="icon-dialog">Cancel</button><button type="button" id="apply-icon" class="primary-button">Apply icon</button></div>
+    </dialog>
+
+    <dialog id="settings-dialog" class="sheet" aria-labelledby="settings-title">
+      <div class="sheet-header"><h2 id="settings-title">Make yourself at home.</h2><button class="icon-button" data-close="settings-dialog" aria-label="Close settings" data-icon="close"></button></div>
+      <p class="sheet-description">Your browser, a little more you.</p>
+      <fieldset><legend>Appearance</legend><div id="themes" class="theme-options"><button data-theme="system">Auto</button><button data-theme="light">Light</button><button data-theme="dark">Dark</button></div></fieldset>
+      <fieldset>
+        <legend>Sidebar</legend>
+        <div class="settings-toggle">
+          <div><label for="show-search-bar">Show search bar</label><p id="search-bar-help">Search is always available from New tab or the keyboard shortcut.</p></div>
+          <input id="show-search-bar" type="checkbox" role="switch" aria-describedby="search-bar-help" checked>
+        </div>
+        <div class="settings-toggle">
+          <div><label for="show-favorite-labels">Show favorite labels</label><p id="favorite-labels-help">Display site names below favorite icons.</p></div>
+          <input id="show-favorite-labels" type="checkbox" role="switch" aria-describedby="favorite-labels-help" checked>
+        </div>
+      </fieldset>
+      <div class="settings-detail"><span data-icon="keyboard"></span><div><strong>Find anything</strong><p><span id="settings-shortcut">⌘ K</span> while the sidebar has focus.</p><p>Open the sidebar with <span id="panel-shortcut">⌘ ⇧ E</span>.</p></div></div>
+      <div class="settings-detail"><span data-icon="move"></span><div><strong>Everything in its place</strong><p>Drag a tab to reorder it or move it to a space. Right-click a space or New tab to create a pinned folder or restore a closed tab. Right-click saved pages to customize icons, organize pins, or add favorites. Drag pins and folder headings to reorder them. Drop pins onto a folder’s center to file them, or near its edges to place them beside it. Use Alt+↑ / Alt+↓ to reorder with the keyboard.</p></div></div>
+      <div class="settings-detail"><span data-icon="shield"></span><div><strong>Just you and your tabs</strong><p>Saved pages and spaces stay on this device. No account, analytics, or external services.</p></div></div>
+      <p class="fine-print">For a left sidebar, choose Left in Chrome’s side panel appearance settings. Chrome’s tab strip stays visible. Tabs return to their spaces when Chrome restores your previous session. Enable “Continue where you left off” in Chrome’s startup settings.</p>
+      <p class="fine-print">Outline icons by Lucide, bundled on this device. ISC / MIT licenses included.</p>
+      <div class="settings-brand"><span class="brand-mark" aria-hidden="true">a</span><div>Arclet <span>0.4.0</span><p>Inspired by Arc. Independently made.</p></div></div>
+    </dialog>
+
+    <div id="context-menu" class="context-menu" role="menu" aria-label="Actions" hidden></div>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Arclet — a calmer sidebar",
+  "short_name": "Arclet",
+  "description": "An Arc-inspired home for your tabs. Organize spaces, save favorites, and find your focus.",
+  "version": "0.4.0",
+  "minimum_chrome_version": "116",
+  "permissions": ["sidePanel", "tabs", "storage", "sessions", "favicon"],
+  "background": { "service_worker": "src/background.js", "type": "module" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "action": { "default_title": "Open Arclet", "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png" } },
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Ctrl+Shift+E", "mac": "Command+Shift+E" },
+      "description": "Open Arclet sidebar"
+    }
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; img-src 'self' data:; connect-src 'none'; base-uri 'none'"
+  }
+}
