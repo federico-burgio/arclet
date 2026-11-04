@@ -44,6 +44,7 @@ let searchIndex = 0;
 let results = [];
 let editingSpace;
 let selectedColor = DEFAULT_SPACE_COLOR;
+let selectedSpaceBackground = null;
 let selectedIcon = 'sun';
 let selectedIconColor = null;
 let editingFolder;
@@ -101,6 +102,8 @@ function applyTheme() {
   root.style.setProperty('--accent', mode === 'dark' ? color.darkAccent : color.accent);
   if (state.backgroundColor) root.style.setProperty('--background', state.backgroundColor);
   else root.style.removeProperty('--background');
+  if (space.backgroundColor) root.style.setProperty('--folder-background', space.backgroundColor);
+  else root.style.removeProperty('--folder-background');
   document.querySelector('meta[name="theme-color"]').content = getComputedStyle(root).getPropertyValue('--background').trim();
   document.querySelectorAll('[data-theme]').forEach(node => node.setAttribute('aria-pressed', String(node.dataset.theme === state.theme)));
   $('#custom-background').checked = Boolean(state.backgroundColor);
@@ -550,6 +553,7 @@ function openSpaceEditor(space) {
   if (!state) return;
   editingSpace = space;
   selectedColor = space?.color ?? DEFAULT_SPACE_COLOR;
+  selectedSpaceBackground = space?.backgroundColor ?? null;
   selectedIcon = space?.icon ?? 'sun';
   selectedIconColor = space?.iconColor ?? null;
   deleteArmed = false;
@@ -568,14 +572,44 @@ function renderSpaceOptions() {
   const colors = $('#color-options');
   colors.replaceChildren();
   Object.entries(COLORS).forEach(([key, color]) => {
-    const node = button(color.label, key === selectedColor ? 'check' : null, 'color-option', () => { selectedColor = key; renderSpaceOptions(); $(`#color-${key}`).focus(); });
+    const selected = key === selectedColor && !selectedSpaceBackground;
+    const node = button(color.label, selected ? 'check' : null, 'color-option', () => { selectedColor = key; selectedSpaceBackground = null; renderSpaceOptions(); $(`#color-${key}`).focus(); });
     node.id = `color-${key}`;
     node.style.background = color.light;
-    node.setAttribute('aria-pressed', String(key === selectedColor));
+    node.setAttribute('aria-pressed', String(selected));
     colors.append(node);
   });
+  $('#space-custom-background').checked = Boolean(selectedSpaceBackground);
+  $('#space-background-controls').hidden = !selectedSpaceBackground;
+  $('#space-background-color').value = selectedSpaceBackground ?? COLORS[selectedColor][document.documentElement.dataset.mode === 'dark' ? 'dark' : 'light'];
+  $('#space-background-hex').value = $('#space-background-color').value;
+  $('#space-background-hex').setCustomValidity('');
   renderAppearanceButton($('#space-appearance'), { icon: selectedIcon, iconColor: selectedIconColor });
 }
+
+$('#space-custom-background').addEventListener('change', event => {
+  selectedSpaceBackground = event.currentTarget.checked ? $('#space-background-color').value : null;
+  renderSpaceOptions();
+});
+$('#space-background-color').addEventListener('change', event => {
+  selectedSpaceBackground = event.currentTarget.value;
+  renderSpaceOptions();
+});
+$('#space-background-hex').addEventListener('input', event => event.currentTarget.setCustomValidity(''));
+$('#space-background-hex').addEventListener('change', event => {
+  const input = event.currentTarget;
+  const value = input.value.trim();
+  input.setCustomValidity(/^#[0-9a-f]{6}$/i.test(value) ? '' : 'Enter a six-digit hex color, such as #e0e2e5.');
+  if (input.reportValidity()) {
+    selectedSpaceBackground = value.toLowerCase();
+    renderSpaceOptions();
+  }
+});
+$('#reset-space-background').addEventListener('click', () => {
+  selectedSpaceBackground = null;
+  renderSpaceOptions();
+  $('#space-custom-background').focus();
+});
 
 function renderAppearanceButton(node, appearance) {
   node.replaceChildren(icon(appearance.icon, appearance.iconColor), make('span', '', 'Choose icon & color'), icon('chevronDown'));
@@ -618,7 +652,7 @@ $('#space-form').addEventListener('submit', async event => {
   event.preventDefault();
   const save = $('#save-space');
   save.disabled = true;
-  const ok = await command('SAVE_SPACE', { id: editingSpace?.id, name: $('#space-input').value, color: selectedColor, icon: selectedIcon, iconColor: selectedIconColor });
+  const ok = await command('SAVE_SPACE', { id: editingSpace?.id, name: $('#space-input').value, color: selectedColor, backgroundColor: selectedSpaceBackground, icon: selectedIcon, iconColor: selectedIconColor });
   save.disabled = false;
   if (ok) $('#space-dialog').close();
 });

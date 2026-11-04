@@ -128,6 +128,46 @@ test('invalid background colors leave the saved preference untouched', async () 
   }
 });
 
+test('custom space backgrounds persist independently of palettes, icon colors, themes, and the main background', async () => {
+  const browser = fakeBrowser([tab(1, 'https://a.test/')]);
+  assert.equal((await browser.run()).spaces[0].backgroundColor ?? null, null);
+  await browser.run('SET_BACKGROUND_COLOR', { color: '#123456' });
+  let state = await browser.run('SAVE_SPACE', { name: 'Reading', color: 'sage', backgroundColor: '#C8D8E8', icon: 'book', iconColor: '#654321' });
+  const id = state.spaceId;
+  const space = () => state.spaces.find(space => space.id === id);
+  assert.equal(space().backgroundColor, '#c8d8e8');
+  assert.equal(space().color, 'sage');
+  assert.equal(space().iconColor, '#654321');
+  state = await browser.run('SET_THEME', { theme: 'dark' });
+  assert.equal(space().backgroundColor, '#c8d8e8');
+  state = await browser.run('GET_STATE', {}, 2);
+  assert.equal(space().backgroundColor, '#c8d8e8');
+  browser.restart([tab(11, 'https://a.test/')]);
+  state = await browser.run();
+  assert.equal(space().backgroundColor, '#c8d8e8');
+  assert.equal(state.backgroundColor, '#123456');
+  // Older clients editing unrelated fields do not discard the custom background.
+  state = await browser.run('SAVE_SPACE', { id, name: 'Books', color: 'rose', icon: 'book' });
+  assert.equal(space().backgroundColor, '#c8d8e8');
+  state = await browser.run('SAVE_SPACE', { id, name: 'Books', color: 'rose', backgroundColor: null, icon: 'book' });
+  assert.equal(space().backgroundColor, null);
+  assert.equal(space().color, 'rose');
+  assert.equal(state.backgroundColor, '#123456');
+  browser.suspend();
+  assert.equal((await browser.run()).spaces.find(space => space.id === id).backgroundColor, null);
+});
+
+test('invalid custom space backgrounds cannot alter or create spaces', async () => {
+  const browser = fakeBrowser();
+  const original = (await browser.run()).spaces;
+  for (const backgroundColor of ['', '#fff', 'red', '#12345g', 'url(https://example.com)', 123, {}]) {
+    for (const id of [undefined, 'personal']) {
+      await assert.rejects(browser.run('SAVE_SPACE', { id, name: 'Changed', color: 'sage', backgroundColor, icon: 'book' }), /valid space background color/);
+      assert.deepEqual((await browser.run()).spaces, original);
+    }
+  }
+});
+
 test('a closed pinned page can become a favorite without opening a tab', async () => {
   const browser = fakeBrowser([tab(1, 'https://a.test/', 0, 1, { title: 'Reading notes' })]);
   const pin = (await browser.run('SAVE_PAGE', { kind: 'pin', tabId: 1 })).pins[0];

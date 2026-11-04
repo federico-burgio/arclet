@@ -24,6 +24,7 @@ The default shortcut is **⌘ Shift E** on macOS or **Ctrl Shift E** elsewhere. 
 - **A simpler tab list:** no Open tabs heading or count bar. Right-click **New tab** or the selected space to **Restore last closed tab**.
 - **Search and navigation** with **⌘ K / Ctrl K**, while the sidebar has keyboard focus. Search tabs across spaces, switch with arrow keys and Enter, or click the bottom result to open a URL or Google search. Bare domains and localhost addresses work.
 - **Light, dark, and system appearance** from the settings button. Optionally enable **Settings → Background → Custom background color** and choose a color or enter a six-digit hex value. This main background override persists across windows and restarts, independently of space colors. Disable it or choose **Use theme default** to restore the current theme’s background.
+- **Custom space backgrounds:** create or edit a space, enable **Custom background color**, and use the picker or hex input. The color applies to that space’s tab area and selected footer tab in every theme, independently of the main background and icon color. Choose a palette, disable the toggle, or select **Use palette** to return to the existing theme-aware palettes. Changes apply when you save the space and persist across restarts.
 - **Native OS typography:** interface text, form controls, and keyboard shortcuts use the operating system’s UI font.
 - **Optional search bar:** open Settings at the footer’s right edge and toggle **Show search bar**. This preference survives restarts and applies to every window. New tab and the search shortcut remain available when the bar is hidden.
 - **Optional favorite labels:** use **Settings → Show favorite labels** to show site names or use icons alone. The preference survives restarts; titles remain available in tooltips and accessible names.
@@ -59,7 +60,7 @@ Open `http://127.0.0.1:4173/sidepanel.html?demo=1`. This explicit preview uses s
 ```sh
 npm test          # State, concurrency, navigation, and tab-action regression tests
 npm run check    # Manifest, resources, CSP, IDs, and JS syntax
-npm run package  # Produces dist/arclet/ and dist/arclet-0.6.0.zip
+npm run package  # Produces dist/arclet/ and dist/arclet-0.7.0.zip
 ```
 
 After changing source files, click Reload on the extension’s card at `chrome://extensions`, then close and reopen the panel. There are no remote scripts, fonts, or build tools.

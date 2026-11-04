@@ -88,12 +88,18 @@ export function createController(api, notify = () => {}) {
         const name = String(payload.name ?? '').trim().slice(0, 32);
         if (!name) throw new Error('Give your space a name.');
         if (!Object.hasOwn(COLORS, payload.color)) throw new Error('Choose a space color.');
+        const existing = payload.id ? requireSpace(data, payload.id) : null;
+        const backgroundColor = payload.backgroundColor === undefined ? existing?.backgroundColor ?? null : payload.backgroundColor;
+        if (backgroundColor !== null && (typeof backgroundColor !== 'string' || !/^#[0-9a-f]{6}$/i.test(backgroundColor))) {
+          throw new Error('Choose a valid space background color, or use a palette.');
+        }
+        const background = { backgroundColor: backgroundColor?.toLowerCase() ?? null };
         const appearance = iconAppearance(payload);
-        if (payload.id) Object.assign(requireSpace(data, payload.id), { name, color: payload.color, ...appearance });
+        if (existing) Object.assign(existing, { name, color: payload.color, ...background, ...appearance });
         else {
           if (data.spaces.length >= 12) throw new Error('You can have up to 12 spaces.');
           const id = crypto.randomUUID();
-          data.spaces.push({ id, name, color: payload.color, ...appearance });
+          data.spaces.push({ id, name, color: payload.color, ...background, ...appearance });
           live.windowSpaces[windowId] = id;
           live.fixedWindows[windowId] = true;
         }
