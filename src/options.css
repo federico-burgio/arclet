@@ -1,0 +1,56 @@
+/* Full browser settings page. The shared stylesheet supplies the neutral theme and controls. */
+:root { font-size: calc(14px * var(--font-scale, 1)); }
+body.options-page { overflow: auto; min-width: 280px; }
+.settings-shell { display: grid; grid-template-columns: 210px minmax(0, 1fr); min-height: 100dvh; max-width: 1120px; margin: 0 auto; }
+.settings-nav { background: var(--sidebar-surface); padding: 32px 18px 24px; position: sticky; top: 0; align-self: start; min-height: 100dvh; display: flex; flex-direction: column; gap: 28px; }
+.settings-wordmark { display: flex; align-items: center; gap: 10px; padding: 0 12px; font-size: 1.285714rem; font-weight: 650; letter-spacing: -.5px; }
+.settings-tabs { display: flex; flex-direction: column; gap: 5px; }
+.settings-tabs button { display: flex; align-items: center; gap: 10px; padding: 11px 12px; text-align: left; border-radius: 8px; font-size: 1rem; font-weight: 500; }
+.settings-tabs button > span { flex-shrink: 0; color: var(--icon); }
+.settings-tabs button:hover { background: var(--hover); }
+.settings-tabs button[aria-selected="true"] { background: var(--active); }
+.settings-nav-note { margin-top: auto; padding: 12px 12px 0; color: var(--muted); font-size: .857143rem; line-height: 1.7; }
+.settings-main { min-width: 0; padding: 44px 42px 40px; }
+.settings-main h1 { font-size: 1.714286rem; font-weight: 650; letter-spacing: -.7px; }
+.settings-subtitle { color: var(--muted); margin: 7px 0 28px; font-size: 1rem; line-height: 1.6; }
+.settings-card { background: var(--surface); border-radius: 12px; margin-bottom: 20px; padding: 0 22px; }
+.settings-card > .settings-toggle, .option-row { padding: 22px 0; gap: 24px; }
+.settings-card > .settings-toggle + .settings-toggle, .settings-card > .option-row + .settings-toggle { border-top: 1px solid var(--line); margin-top: 0; }
+.option-row { display: flex; align-items: center; justify-content: space-between; }
+.option-row + .option-row { border-top: 1px solid var(--line); }
+.option-row h2, .settings-card .settings-toggle label { font-size: 1rem; font-weight: 600; display: block; margin: 0; }
+.option-row p, .settings-card .settings-toggle p { font-size: .857143rem; color: var(--muted); margin-top: 4px; line-height: 1.65; }
+.settings-toggle > div { min-width: 0; }
+.theme-options { min-width: 190px; flex-shrink: 0; }
+.theme-options button { font-size: .857143rem; padding: 7px 10px; }
+.settings-select select { font-size: 1rem; padding: 7px 10px; }
+.settings-hint { margin: 0 2px 24px; color: var(--muted); font-size: .857143rem; line-height: 1.7; }
+.settings-card .background-controls { margin: 0; padding: 0 0 22px; }
+.options-page .custom-color { display: flex; align-items: center; gap: 10px; font-size: .857143rem; color: var(--muted); }
+.options-page .background-hex { font-size: 1rem; width: 7rem; }
+.options-page .background-controls .text-button { font-size: .857143rem; }
+.save-status { margin-top: 30px; display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: .857143rem; line-height: 1.6; }
+.save-status svg { width: 14px; height: 14px; }
+.settings-error, .preview-note { font-size: .857143rem; line-height: 1.7; margin: 0 0 20px; overflow-wrap: anywhere; }
+.settings-error { color: #b44b60; }
+:root[data-mode="dark"] .settings-error { color: #ee8b9e; }
+.preview-note { color: var(--muted); }
+.transfer-settings { padding-block: 0; }
+.transfer-settings .transfer-description, .transfer-links { font-size: .857143rem; }
+.transfer-settings .secondary-button, .transfer-settings .primary-button { font-size: .928571rem; }
+.transfer-settings .primary-button { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.transfer-links { margin: 0 2px 22px; }
+.transfer-error { margin: 0 0 20px; }
+.options-page .settings-detail { margin: 0; padding: 22px 0; border-bottom: 1px solid var(--line); }
+.options-page .settings-detail strong { font-size: 1rem; }
+.options-page .settings-detail p, .options-page .fine-print { font-size: .857143rem; }
+.options-page .settings-brand { font-size: 1.142857rem; }
+.options-page .settings-brand p, .options-page .settings-brand div > span { font-size: .857143rem; }
+.settings-main a { color: var(--muted); text-underline-offset: 3px; }
+.settings-main a:focus-visible, select:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.options-page .sheet { max-width: 460px; padding: 24px; }
+.options-page .sheet-description { overflow-wrap: anywhere; }
+@media (min-width: 701px) { .settings-tabs { position: static; } }
+@media (max-width: 850px) { .settings-main { padding: 32px 24px; } .option-row, .settings-card > .settings-toggle { flex-wrap: wrap; gap: 14px; } .settings-tabs button { overflow-wrap: anywhere; } }
+@media (max-width: 600px) { .settings-shell { display: block; } .settings-nav { position: static; min-height: 0; gap: 20px; padding: 22px 20px; } .settings-tabs { display: grid; grid-template-columns: 1fr 1fr; } .settings-tabs button { font-size: .928571rem; padding: 10px 8px; } .settings-nav-note { display: none; } .settings-main { padding: 28px 20px; } .settings-card { padding-inline: 18px; } .settings-card .settings-toggle > div { flex-basis: 70%; } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }

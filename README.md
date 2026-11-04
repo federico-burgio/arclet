@@ -27,13 +27,14 @@ The default shortcut is **⌘ Shift E** on macOS or **Ctrl Shift E** elsewhere. 
 - **Clear regular tabs:** the broom button at the right of the **New tab** row closes regular tabs in the selected space and current window. Chrome-pinned tabs, Arclet pinned pages, favorites, and tabs in other spaces/windows stay open. The button is disabled when there is nothing eligible to close. Closed tabs can be restored as usual.
 - **Current-page actions:** **Back → Forward → Refresh → Copy URL** sit immediately before the search field. They act on the active Chrome tab in the sidebar’s window, including when its page is saved or a different space is selected. Back and Forward use that tab’s own browser history and report when no previous or next page exists. Copy URL writes the current address only when clicked. These actions are disabled when there is no active page.
 - **Middle-click to close:** click the middle mouse button on a regular open-tab row to close it without activating it. Chrome-pinned tabs, Arclet pinned pages, and favorites are protected; explicitly closing or unpinning them remains available through the existing controls. Closed regular tabs can be restored as usual.
-- **Light, dark, and system appearance** from the settings button. Optionally enable **Settings → Background → Custom background color** and choose a color or enter a six-digit hex value. This main background override persists across windows and restarts, independently of space colors. Disable it or choose **Use theme default** to restore the current theme’s background.
+- **Full-page settings:** the footer’s Settings button opens or focuses Arclet’s settings in a regular Chrome tab. Vertical navigation separates **Appearance**, **Sidebar**, **Import & export**, and **Help & about**. Changes save immediately and update open sidebars. Chrome’s extension Options entry opens the same page; no new permissions are needed. Space-specific editing stays in the sidebar menus.
+- **Light, dark, and system appearance** from **Settings → Appearance**. Optionally enable **Settings → Appearance → Custom background color** and choose a color or enter a six-digit hex value. This main background override persists across windows and restarts, independently of space colors. Disable it or choose **Use theme default** to restore the current theme’s background.
 - **Neutral gray interface:** settings, menus, dialogs, primary buttons, and focus outlines use the gray palette below, independently of the selected space. The compact search bar and favorite tiles have no borders and follow the selected space’s tab-area background, including custom colors; their hover states retain that color. Slate spaces use the neutral tab-area color; other palettes and custom backgrounds remain available.
 - **Custom space backgrounds:** create or edit a space, enable **Custom background color**, and use the picker or hex input. The color applies to that space’s tab area, search bar, favorite tiles, and selected footer tab in every theme, independently of the main background and icon color. Choose a palette, disable the toggle, or select **Use palette** to return to the existing theme-aware palettes. Changes apply when you save the space and persist across restarts.
 - **Native OS typography:** interface text, form controls, and keyboard shortcuts use the operating system’s UI font.
-- **Adjustable font size:** choose 90%, 100% (default), 110%, 125%, or 150% in **Settings → Sidebar → Font size**. Text throughout Arclet scales immediately, including tabs, favorites, menus, and settings. The preference applies across windows and survives restarts.
+- **Adjustable font size:** choose 90%, 100% (default), 110%, 125%, or 150% in **Settings → Appearance → Font size**. Text throughout Arclet scales immediately, including tabs, favorites, menus, and settings. The preference applies across windows and survives restarts.
 - **Optional search bar:** open Settings at the footer’s right edge and toggle **Show search bar** to show or hide the search field and its page-action buttons. This preference survives restarts and applies to every window. New tab and the search shortcut remain available when the bar is hidden.
-- **Optional favorite labels:** use **Settings → Show favorite labels** to show site names or use icons alone. The preference survives restarts; titles remain available in tooltips and accessible names.
+- **Optional favorite labels:** use **Settings → Sidebar → Show favorite labels** to show site names or use icons alone. The preference survives restarts; titles remain available in tooltips and accessible names.
 - **Favorites per row:** choose 1–8 in **Settings → Sidebar → Favorites per row** (default: 4). Tiles wrap into additional rows, and the favorites area scrolls after reaching 35% of the sidebar height. If you have fewer favorites than the chosen count, they fill the available row. The preference applies across windows and survives restarts.
 - **Multiple windows** with independently selected spaces. Tab actions stay within their originating window.
 - **Spaces survive Chrome restarts.** When Chrome restores your tabs, Arclet recovers their assignments from a local checkpoint, including separate copies of the same URL.
@@ -89,12 +90,12 @@ Node.js 20+ is needed only for the development commands. Nothing needs to be ins
 npm run preview
 ```
 
-Open `http://127.0.0.1:4173/sidepanel.html?demo=1`. This explicit preview uses sample tabs and an in-memory browser adapter. It exercises the same controller as the extension, but does not control real Chrome tabs. Reloading the preview resets its sample data. To use another port, set `ARCLET_PORT`.
+Open `http://127.0.0.1:4173/sidepanel.html?demo=1`. This explicit preview uses sample tabs and an in-memory browser adapter. It exercises the same controller as the extension, but does not control real Chrome tabs. The sidebar preview and `http://127.0.0.1:4173/options.html?demo=1` share saved settings and pages through local storage on this preview origin. Changes survive preview reloads, while sample browser tabs reset. This data is separate from the installed extension. To use another port, set `ARCLET_PORT`.
 
 ```sh
 npm test          # State, concurrency, navigation, and tab-action regression tests
 npm run check    # Manifest, resources, CSP, IDs, and JS syntax
-npm run package  # Produces dist/arclet/ and dist/arclet-0.12.0.zip
+npm run package  # Produces dist/arclet/ and dist/arclet-0.13.0.zip
 ```
 
 After changing source files, click Reload on the extension’s card at `chrome://extensions`, then close and reopen the panel. There are no remote scripts, fonts, or build tools.
@@ -104,6 +105,8 @@ For the restart integration test, set `ARCLET_PLAYWRIGHT` to an installed Playwr
 ## Source
 
 - `src/background.js` registers Chrome events and configures the toolbar action.
+- `options.html`, `src/options.js`, and `src/options.css` implement the full-page settings and section navigation.
+- `src/message-access.js` restricts worker commands to the extension’s UI documents; the options page can only read state, change preferences, and import/export.
 - `src/controller.js` is the single writer for state; commands and browser events are serialized across panels.
 - `src/persistence.js` checkpoints windows and recovers tabs one-to-one after a browser restart.
 - `src/pinned-order.js` validates and saves mixed pin/folder order and folder membership; older lists migrate in their existing display order.

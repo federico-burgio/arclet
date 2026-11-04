@@ -1,4 +1,5 @@
 import { createController } from './controller.js';
+import { canHandleMessage } from './message-access.js';
 
 function notify() {
   chrome.runtime.sendMessage({ type: 'STATE_CHANGED' }).catch(() => {});
@@ -11,8 +12,7 @@ chrome.runtime.onInstalled.addListener(configure);
 chrome.runtime.onStartup.addListener(configure);
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
-  if (sender.id !== chrome.runtime.id || sender.url !== chrome.runtime.getURL('sidepanel.html')) return;
-  if (message.type === 'STATE_CHANGED') return;
+  if (!canHandleMessage(chrome.runtime, message, sender)) return;
   controller.dispatch(message).then(
     state => respond({ ok: true, state }),
     error => respond({ ok: false, error: error.message })

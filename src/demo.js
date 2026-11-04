@@ -1,7 +1,7 @@
 import { defaultData } from './model.js';
 
 // Explicit preview mode only. Real extension pages always use chrome.* via the worker.
-export function createDemoApi() {
+export function createDemoApi({ savedDataStore } = {}) {
   const event = () => {
     const listeners = new Set();
     return { addListener: fn => listeners.add(fn), emit: (...args) => listeners.forEach(fn => fn(...args)) };
@@ -31,8 +31,11 @@ export function createDemoApi() {
   const closed = [];
   const clone = value => structuredClone(value);
   const storage = store => ({
-    get: async key => ({ [key]: clone(store[key]) }),
-    set: async values => Object.assign(store, clone(values))
+    get: async key => ({ [key]: clone(store === local && key === 'data' ? savedDataStore?.get() ?? store[key] : store[key]) }),
+    set: async values => {
+      Object.assign(store, clone(values));
+      if (store === local && values.data) savedDataStore?.set(clone(values.data));
+    }
   });
   const find = id => {
     const tab = tabs.find(tab => tab.id === id);
