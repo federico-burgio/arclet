@@ -6,7 +6,9 @@ export function folderDropPosition(kind, y, top, height) {
   return fraction < .5 ? 'before' : 'after';
 }
 
-export function createPinnedDrag({ root, scroll, onStart, onEnd, onDrop }) {
+export function createSavedItemDrag({ root, scroll, onStart, onEnd, onDrop,
+  sourceSelector = '[data-pin-kind]', sourceFor = node => ({ kind: node.dataset.pinKind, id: node.dataset.pinId }),
+  resolveDrop, dragClass = 'pinned-dragging', ghostClass = 'pinned-drag-ghost' }) {
   let pending;
   let active;
   let ghost;
@@ -16,7 +18,7 @@ export function createPinnedDrag({ root, scroll, onStart, onEnd, onDrop }) {
   let suppressClickUntil = 0;
   let cancelledPointerId = null;
 
-  function hit(source, x, y) {
+  function pinnedHit(source, x, y) {
     const node = document.elementFromPoint(x, y);
     if (!node || !root.contains(node)) return null;
     let entry = node.closest('[data-pin-kind]');
@@ -48,6 +50,7 @@ export function createPinnedDrag({ root, scroll, onStart, onEnd, onDrop }) {
       targetId: id, targetKind: kind, placement: position, label: `Move ${position} ${row.dataset.pinLabel}`,
       element: kind === 'folder' ? row.closest('.pin-folder') : row, position };
   }
+  const hit = resolveDrop ?? pinnedHit;
 
   function clearTarget() {
     root.querySelectorAll('.pin-drop-inside').forEach(node => node.classList.remove('pin-drop-inside'));
@@ -64,9 +67,16 @@ export function createPinnedDrag({ root, scroll, onStart, onEnd, onDrop }) {
       const rect = next.element.getBoundingClientRect();
       indicator = document.createElement('div');
       indicator.className = 'pin-drop-line';
-      indicator.style.left = `${rect.left}px`;
-      indicator.style.top = `${next.position === 'before' ? rect.top : rect.bottom}px`;
-      indicator.style.width = `${rect.width}px`;
+      if (next.axis === 'horizontal') {
+        indicator.classList.add('vertical');
+        indicator.style.left = `${next.position === 'before' ? rect.left : rect.right}px`;
+        indicator.style.top = `${rect.top}px`;
+        indicator.style.height = `${rect.height}px`;
+      } else {
+        indicator.style.left = `${rect.left}px`;
+        indicator.style.top = `${next.position === 'before' ? rect.top : rect.bottom}px`;
+        indicator.style.width = `${rect.width}px`;
+      }
       document.body.append(indicator);
     }
     root.dataset.dropHint = next.label;
@@ -104,7 +114,7 @@ export function createPinnedDrag({ root, scroll, onStart, onEnd, onDrop }) {
     ghost?.remove();
     ghost = null;
     delete root.dataset.dropHint;
-    document.body.classList.remove('pinned-dragging');
+    document.body.classList.remove(dragClass);
     if (!drag) return;
     drag.node.classList.remove('dragging');
     if (root.hasPointerCapture(drag.pointerId)) root.releasePointerCapture(drag.pointerId);
@@ -120,31 +130,32 @@ export function createPinnedDrag({ root, scroll, onStart, onEnd, onDrop }) {
   root.addEventListener('pointerdown', event => {
     cancelledPointerId = null;
     if (event.button !== 0 || !event.isPrimary || event.target.closest('.tab-action')) return;
-    const node = event.target.closest('[data-pin-kind]');
+    const node = event.target.closest(sourceSelector);
     if (!node || !root.contains(node)) return;
     pending = { node, pointerId: event.pointerId, x: event.clientX, y: event.clientY };
   });
   // Native HTML dragging can take over pointer events on images/text/buttons.
   // Pins and folders use one pointer gesture across their entire row instead.
-  root.addEventListener('dragstart', event => { if (event.target.closest('[data-pin-kind]')) event.preventDefault(); });
+  root.addEventListener('dragstart', event => { if (event.target.closest(sourceSelector)) event.preventDefault(); });
   document.addEventListener('pointermove', event => {
     if (!pending || event.pointerId !== pending.pointerId) return;
     if (!active) {
       if (Math.hypot(event.clientX - pending.x, event.clientY - pending.y) < 6) return;
       const rect = pending.node.getBoundingClientRect();
       active = { ...pending, offsetX: pending.x - rect.left, offsetY: pending.y - rect.top,
-        source: { kind: pending.node.dataset.pinKind, id: pending.node.dataset.pinId } };
+        source: sourceFor(pending.node) };
       root.setPointerCapture(event.pointerId);
       ghost = pending.node.cloneNode(true);
       ghost.removeAttribute('id');
       ghost.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
-      ghost.className = 'pinned-drag-ghost';
+      ghost.className = ghostClass;
       ghost.style.width = `${rect.width}px`;
+      ghost.style.height = `${rect.height}px`;
       ghost.setAttribute('aria-hidden', 'true');
       ghost.inert = true;
       document.body.append(ghost);
       pending.node.classList.add('dragging');
-      document.body.classList.add('pinned-dragging');
+      document.body.classList.add(dragClass);
       onStart();
       frame = requestAnimationFrame(autoScroll);
     }

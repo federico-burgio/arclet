@@ -60,16 +60,18 @@ export function createDemoApi() {
         if ('active' in change) tab.active = change.active;
         return clone(tab);
       },
-      remove: async id => {
-        const tab = find(id);
-        closed.unshift({ tab: { ...clone(tab), sessionId: String(id) } });
-        tabs = tabs.filter(other => other.id !== id);
-        if (tab.active) {
-          const next = tabs.find(other => other.windowId === tab.windowId);
-          if (next) next.active = true;
+      remove: async ids => {
+        for (const id of Array.isArray(ids) ? ids : [ids]) {
+          const tab = find(id);
+          closed.unshift({ tab: { ...clone(tab), sessionId: String(id) } });
+          tabs = tabs.filter(other => other.id !== id);
+          if (tab.active) {
+            const next = tabs.find(other => other.windowId === tab.windowId);
+            if (next) next.active = true;
+          }
+          reindex();
+          removed.emit(id);
         }
-        reindex();
-        removed.emit(id);
       },
       move: async (id, { index, windowId }) => {
         const tab = find(id);

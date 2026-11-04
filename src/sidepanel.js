@@ -3,7 +3,8 @@ import { icon } from './icons.js';
 import { connect } from './platform.js';
 import { openIconPicker } from './icon-picker.js';
 import { pinnedEntries } from './pinned-order.js';
-import { createPinnedDrag } from './pin-drag.js';
+import { createSavedItemDrag } from './pin-drag.js';
+import { createFavoriteDrag } from './favorite-drag.js';
 
 const $ = selector => document.querySelector(selector);
 const make = (tag, className, text) => {
@@ -37,6 +38,7 @@ let refreshTimer;
 let toastTimer;
 let draggingId = null;
 let draggingPinned = false;
+let draggingFavorites = false;
 let deferredState;
 let searchIndex = 0;
 let results = [];
@@ -130,7 +132,7 @@ function favicon(page) {
 }
 
 function applyState(next) {
-  if (draggingId !== null || draggingPinned) { deferredState = next; return; }
+  if (draggingId !== null || draggingPinned || draggingFavorites) { deferredState = next; return; }
   const focusKey = document.activeElement?.dataset.focusKey;
   state = next;
   applyTheme();
@@ -165,17 +167,40 @@ function renderFavorites() {
     const wrapper = make('div', 'favorite-wrap');
     const node = button(page.title, null, 'favorite', () => command('OPEN_PAGE', { id: page.id }));
     node.dataset.focusKey = `favorite-${page.id}`;
+    node.dataset.favoriteId = page.id;
+    node.addEventListener('keydown', event => {
+      if (!event.altKey || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+      event.preventDefault();
+      favoriteOrderingActions(page).find(entry => entry.label === (event.key === 'ArrowLeft' ? 'Move left' : 'Move right'))?.action();
+    });
     node.append(favicon(page));
     if (state.showFavoriteLabels) node.append(make('span', 'favorite-label', pageLabel(page.url)));
     bindContextMenu(node, (x, y) => openMenu(x, y, [
       { label: 'Customize icon', icon: 'palette', action: () => editPageIcon(page, 'favorite') },
+      ...favoriteOrderingActions(page),
       { label: 'Remove favorite', icon: 'close', action: () => command('REMOVE_PAGE', { kind: 'favorite', id: page.id }) }
     ]));
-    const remove = button(`Remove ${page.title} from favorites`, 'close', 'remove-favorite', () => command('REMOVE_PAGE', { kind: 'favorite', id: page.id }));
-    wrapper.append(node, remove);
+    wrapper.append(node);
     grid.append(wrapper);
   }
 }
+
+function favoriteOrderingActions(page) {
+  const index = state.favorites.findIndex(item => item.id === page.id);
+  const previous = state.favorites[index - 1];
+  const next = state.favorites[index + 1];
+  const move = (target, placement) => command('REORDER_FAVORITE', { id: page.id, targetId: target.id, placement });
+  return [
+    ...(index > 0 ? [{ label: 'Move left', icon: 'arrow-left', action: () => move(previous, 'before') }] : []),
+    ...(index >= 0 && next ? [{ label: 'Move right', icon: 'arrow-right', action: () => move(next, 'after') }] : [])
+  ];
+}
+
+const favoritesDrag = createFavoriteDrag({ root: $('#favorites'), scroll: $('.favorites-section'),
+  onStart: () => { draggingFavorites = true; closeMenu(); },
+  onEnd: finishDrag,
+  onDrop: ({ id, targetId, placement }) => command('REORDER_FAVORITE', { id, targetId, placement })
+});
 
 function favoriteAction(page, source) {
   const saved = state.favorites.find(favorite => favorite.url === page.url);
@@ -287,7 +312,7 @@ function renderPins() {
   $('#pins-divider').hidden = entries.length === 0;
 }
 
-const pinnedDrag = createPinnedDrag({
+const pinnedDrag = createSavedItemDrag({
   root: $('#pins'), scroll: $('.content-scroll'),
   onStart: () => { draggingPinned = true; closeMenu(); },
   onEnd: finishDrag,
@@ -324,11 +349,11 @@ function openPinFolders(page, x, y) {
 
 function renderTabs() {
   const list = $('#tabs');
-  const tabs = openTabsForSpace(state.tabs, state.pins, state.spaceId);
+  const tabs = openTabsForSpace(state.tabs, state.pins, state.spaceId, state.favorites);
   $('#empty-tabs').hidden = tabs.length > 0;
-  const allPinned = !tabs.length && state.tabs.some(tab => tab.spaceId === state.spaceId);
-  $('#empty-tabs p').textContent = allPinned ? 'All your tabs are pinned.' : 'A little room to think.';
-  $('#empty-tabs > span:last-child').textContent = allPinned ? 'Open a new tab to keep exploring.' : 'Open a tab and make this space yours.';
+  const allSaved = !tabs.length && state.tabs.some(tab => tab.spaceId === state.spaceId);
+  $('#empty-tabs p').textContent = allSaved ? 'Your tabs are saved above.' : 'A little room to think.';
+  $('#empty-tabs > span:last-child').textContent = allSaved ? 'Open a new tab to keep exploring.' : 'Open a tab and make this space yours.';
   list.replaceChildren();
   for (const tab of tabs) {
     const row = make('div', `tab-row${tab.active ? ' active' : ''}${tab.discarded ? ' discarded' : ''}`);
@@ -351,7 +376,10 @@ function renderTabs() {
         { heading: 'MOVE TO SPACE' },
         ...state.spaces.filter(space => space.id !== tab.spaceId).map(space => ({ label: space.name, icon: space.icon, iconColor: space.iconColor, action: () => command('MOVE_TAB', { id: tab.id, spaceId: space.id }, `Moved to ${space.name}.`) })),
         { separator: true },
-        { label: 'Close tab', icon: 'close', action: () => command('CLOSE_TAB', { id: tab.id }) }
+        { label: 'Close tab', icon: 'close', action: () => command('CLOSE_TAB', { id: tab.id }) },
+        { label: 'Close all tabs below', icon: 'list-end', disabled: tabs.at(-1)?.id === tab.id,
+          action: () => command('CLOSE_OPEN_TABS', { mode: 'below', id: tab.id, spaceId: tab.spaceId }, 'Tabs below closed.') },
+        { label: 'Close all tabs', icon: 'copy-x', action: () => command('CLOSE_OPEN_TABS', { mode: 'all', spaceId: tab.spaceId }, 'Open tabs closed.') }
       ]);
     };
     bindContextMenu(row, showTabMenu);
@@ -385,8 +413,10 @@ function renderTabs() {
 function finishDrag() {
   draggingId = null;
   draggingPinned = false;
+  draggingFavorites = false;
   document.body.classList.remove('tab-dragging');
   pinnedDrag.clear();
+  favoritesDrag.clear();
   if (state) $('.pins-section').hidden = pinnedEntries(state, state.spaceId).length === 0;
   document.querySelectorAll('.dragging, .drag-over, .drop-target').forEach(node => node.classList.remove('dragging', 'drag-over', 'drop-target'));
   if (deferredState) { const next = deferredState; deferredState = null; applyState(next); }
@@ -603,6 +633,7 @@ function openMenu(x, y, entries) {
     if (entry.heading) { menu.append(make('div', 'menu-heading', entry.heading)); return; }
     if (entry.separator) { menu.append(make('div', 'menu-separator')); return; }
     const node = button(entry.label, entry.icon, '', () => { closeMenu(); entry.action(); });
+    node.disabled = Boolean(entry.disabled);
     if (entry.iconColor) node.querySelector('svg')?.style.setProperty('color', entry.iconColor);
     node.setAttribute('role', 'menuitem');
     node.append(make('span', '', entry.label));
@@ -611,10 +642,10 @@ function openMenu(x, y, entries) {
   menu.hidden = false;
   menu.style.left = `${Math.max(8, Math.min(x, innerWidth - menu.offsetWidth - 8))}px`;
   menu.style.top = `${Math.max(8, Math.min(y, innerHeight - menu.offsetHeight - 8))}px`;
-  menu.querySelector('button')?.focus();
+  menu.querySelector('button:not(:disabled)')?.focus();
 }
 $('#context-menu').addEventListener('keydown', event => {
-  const items = [...$('#context-menu').querySelectorAll('button')];
+  const items = [...$('#context-menu').querySelectorAll('button:not(:disabled)')];
   const index = items.indexOf(document.activeElement);
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault();
@@ -639,10 +670,15 @@ function openSpaceActions(space, x, y) {
   ]);
 }
 function openContentActions(x, y) {
+  const targetSpace = state.spaceId;
+  const tabs = openTabsForSpace(state.tabs, state.pins, targetSpace, state.favorites);
   openMenu(x, y, [
     { label: 'New pinned folder', icon: 'folder-plus', action: () => openFolderEditor() },
     { label: 'Pin current page', icon: 'pin', action: () => saveCurrent('pin') },
-    { label: 'Restore last closed tab', icon: 'history', action: () => command('RESTORE_TAB', {}, 'Tab restored.') }
+    { label: 'Restore last closed tab', icon: 'history', action: () => command('RESTORE_TAB', {}, 'Tab restored.') },
+    { separator: true },
+    { label: 'Close all tabs', icon: 'copy-x', disabled: !tabs.length,
+      action: () => command('CLOSE_OPEN_TABS', { mode: 'all', spaceId: targetSpace }, 'Open tabs closed.') }
   ]);
 }
 bindContextMenu($('#new-tab'), openContentActions);

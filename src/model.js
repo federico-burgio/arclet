@@ -73,7 +73,8 @@ export function matchingTabs(tabs, query) {
   return tabs.filter(tab => terms.every(term => `${tab.title} ${tab.url}`.toLocaleLowerCase().includes(term)));
 }
 
-export function openTabsForSpace(tabs, pins, spaceId) {
-  const pinnedUrls = new Set(pins.filter(page => page.spaceId === spaceId).map(page => page.url));
-  return tabs.filter(tab => tab.spaceId === spaceId && !pinnedUrls.has(tab.url || tab.pendingUrl));
+export function openTabsForSpace(tabs, pins, spaceId, favorites = []) {
+  const savedUrls = new Set([...pins.filter(page => page.spaceId === spaceId), ...favorites].map(page => page.url));
+  return tabs.filter(tab => tab.spaceId === spaceId && !savedUrls.has(tab.url || tab.pendingUrl))
+    .sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
 }

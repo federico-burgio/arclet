@@ -33,3 +33,23 @@ test('open-tab list hides only pages pinned in the selected space and keeps the 
   assert.deepEqual(openTabsForSpace(tabs, pins, 'work').map(tab => tab.id), [3]);
   assert.equal(tabs.length, 6);
 });
+
+test('favorites hide matching tabs across spaces without changing tabs or search results', () => {
+  const tabs = [
+    { id: 1, title: 'Favorite', url: 'https://favorite.test/', spaceId: 'personal' },
+    { id: 2, title: 'Favorite copy', url: 'https://favorite.test/', spaceId: 'work' },
+    { id: 3, title: 'Loading favorite', pendingUrl: 'https://favorite.test/', spaceId: 'personal' },
+    { id: 4, title: 'Other page', url: 'https://other.test/', spaceId: 'personal' },
+    { id: 5, title: 'Other path', url: 'https://favorite.test/other', spaceId: 'personal' }
+  ];
+  const before = structuredClone(tabs);
+  const favorites = [{ id: 'favorite', url: 'https://favorite.test/' }];
+  assert.deepEqual(openTabsForSpace(tabs, [], 'personal', favorites).map(tab => tab.id), [4, 5]);
+  assert.deepEqual(openTabsForSpace(tabs, [], 'work', favorites), []);
+  assert.deepEqual(matchingTabs(tabs, 'Favorite').map(tab => tab.id), [1, 2, 3, 5]);
+  assert.deepEqual(tabs, before);
+  // Removing the favorite restores live tabs, unless the same URL is pinned.
+  assert.deepEqual(openTabsForSpace(tabs, [], 'personal', []).map(tab => tab.id), [1, 3, 4, 5]);
+  const pins = [{ url: 'https://favorite.test/', spaceId: 'personal' }];
+  assert.deepEqual(openTabsForSpace(tabs, pins, 'personal', []).map(tab => tab.id), [4, 5]);
+});

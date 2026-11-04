@@ -44,7 +44,7 @@
 @layer layout {
   .sidebar { height: 100dvh; min-height: 300px; display: flex; flex-direction: column; padding: 15px 14px 10px; max-width: 560px; margin: 0 auto; }
   .brand-mark { font-family: Georgia, serif; font-size: 23px; font-style: italic; line-height: 1; width: 23px; height: 25px; border-bottom: 2px solid var(--accent); border-radius: 0 0 40% 40%; display: inline-flex; align-items: center; justify-content: center; }
-  .favorites-section { padding-top: 23px; padding-bottom: 23px; }
+  .favorites-section { padding-top: 23px; padding-bottom: 23px; max-height: 35dvh; overflow-y: auto; scrollbar-width: thin; }
   .search-launcher[hidden] + .favorites-section { padding-top: 0; }
   .favorites-section[hidden] + .space-folder { margin-top: 16px; }
   .search-launcher[hidden] + .favorites-section[hidden] + .space-folder { margin-top: 0; }
@@ -76,12 +76,13 @@
   .favorite-wrap { position: relative; min-width: 0; }
   .favorite { width: 100%; height: 53px; background: var(--wash); border: 1px solid rgb(255 255 255 / .14); border-radius: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; transition: background .15s, transform .15s; }
   .favorite:hover { background: var(--active); transform: translateY(-1px); }
+  .favorite { touch-action: none; user-select: none; -webkit-user-drag: none; cursor: grab; }
+  .favorite img { pointer-events: none; }
+  .favorite.dragging { opacity: .3; }
+  .favorites-dragging, .favorites-dragging * { cursor: grabbing !important; user-select: none; }
   .favorite .favicon { width: 21px; height: 21px; font-size: 17px; }
   .favorite-label { font-size: 8px; line-height: 1.1; max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
   .favorites--icons-only .favorite { height: 44px; }
-  .remove-favorite { position: absolute; right: -4px; top: -5px; width: 18px; height: 18px; border-radius: 50%; padding: 3px; background: var(--surface); box-shadow: 0 1px 5px var(--line); opacity: 0; }
-  .remove-favorite svg { width: 12px; height: 12px; }
-  .favorite-wrap:hover .remove-favorite, .favorite-wrap:focus-within .remove-favorite { opacity: 1; }
   .tab-list { display: flex; flex-direction: column; gap: 3px; }
   .tab-row { display: flex; align-items: center; min-height: 37px; border-radius: 8px; gap: 1px; position: relative; }
   .tab-row:hover { background: var(--hover); }
@@ -140,10 +141,12 @@
 }
 
 @layer overlays {
-  .pinned-drag-ghost { position: fixed; z-index: 100; display: flex; align-items: center; gap: 9px; min-height: 37px; padding: 8px 10px; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); opacity: .94; pointer-events: none; }
+  .pinned-drag-ghost, .favorite-drag-ghost { position: fixed; z-index: 100; display: flex; align-items: center; gap: 9px; min-height: 37px; padding: 8px 10px; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); opacity: .94; pointer-events: none; }
+  .favorite-drag-ghost { flex-direction: column; justify-content: center; gap: 5px; }
   .pinned-drag-ghost .tab-main { padding: 0; height: auto; }
   .pinned-drag-ghost .tab-action { display: none; }
   .pin-drop-line { position: fixed; z-index: 99; height: 2px; background: var(--accent); border-radius: 2px; pointer-events: none; }
+  .pin-drop-line.vertical { width: 2px; }
   .pin-drop-line::before { content: ''; position: absolute; top: -2px; left: -2px; width: 6px; height: 6px; border: 1.5px solid var(--accent); border-radius: 50%; background: var(--surface); }
   dialog { color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 15px; box-shadow: var(--shadow); max-height: calc(100dvh - 40px); overflow-y: auto; padding: 0; }
   dialog::backdrop { background: rgb(25 16 37 / .23); backdrop-filter: blur(5px); }

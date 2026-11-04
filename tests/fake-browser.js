@@ -31,7 +31,13 @@ export function fakeBrowser(initial = []) {
         if ('active' in change) tab.active = change.active;
         return clone(tab);
       },
-      remove: async id => { closed.unshift(clone(find(id))); current = current.filter(tab => tab.id !== id); reindex(); },
+      remove: async ids => {
+        for (const id of Array.isArray(ids) ? ids : [ids]) {
+          closed.unshift(clone(find(id)));
+          current = current.filter(tab => tab.id !== id);
+        }
+        reindex();
+      },
       move: async (id, { index, windowId }) => {
         const tab = find(id);
         current = current.filter(tab => tab.id !== id);

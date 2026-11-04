@@ -1,4 +1,4 @@
-import { COLORS, defaultData, destination, safeSavedUrl, iconAppearance } from './model.js';
+import { COLORS, defaultData, destination, safeSavedUrl, iconAppearance, openTabsForSpace } from './model.js';
 import { preparePersistence, reconcileWorkspace, forgetTab } from './persistence.js';
 import { normalizePinnedOrder, movePinnedItem, pinnedEntries, removePinnedFolder } from './pinned-order.js';
 
@@ -164,6 +164,35 @@ export function createController(api, notify = () => {}) {
         await api.tabs.remove(payload.id);
         forgetTab(state, payload.id);
         break;
+      case 'CLOSE_OPEN_TABS': {
+        if (!['all', 'below'].includes(payload.mode)) throw new Error('Choose which open tabs to close.');
+        const targetSpace = payload.spaceId ?? spaceId;
+        requireSpace(data, targetSpace);
+        const tabs = getState(windowId, state).tabs;
+        let targets = openTabsForSpace(tabs, data.pins, targetSpace, data.favorites);
+        if (payload.mode === 'below') {
+          await tabInWindow(payload.id);
+          const index = targets.findIndex(tab => tab.id === payload.id);
+          if (index < 0) throw new Error('This tab is no longer in the open-tab list.');
+          targets = targets.slice(index + 1);
+        }
+        if (targets.length) {
+          await api.tabs.remove(targets.map(tab => tab.id));
+          targets.forEach(tab => forgetTab(state, tab.id));
+        }
+        break;
+      }
+      case 'REORDER_FAVORITE': {
+        if (!['before', 'after'].includes(payload.placement)) throw new Error('Choose a valid drop position.');
+        const source = data.favorites.findIndex(page => page.id === payload.id);
+        const target = data.favorites.findIndex(page => page.id === payload.targetId);
+        if (source < 0 || target < 0) throw new Error('This favorite no longer exists.');
+        if (source === target) break;
+        const [favorite] = data.favorites.splice(source, 1);
+        const index = data.favorites.findIndex(page => page.id === payload.targetId) + (payload.placement === 'after' ? 1 : 0);
+        data.favorites.splice(index, 0, favorite);
+        break;
+      }
       case 'MUTE_TAB': {
         const tab = await tabInWindow(payload.id);
         await api.tabs.update(tab.id, { muted: !tab.mutedInfo?.muted });
