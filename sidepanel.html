@@ -37,7 +37,10 @@
             <div id="pins-divider" class="divider"></div>
 
             <section class="tabs-section" aria-label="Open tabs">
-              <button id="new-tab" class="new-tab"><span data-icon="plus"></span>New tab <kbd>⌘ K</kbd></button>
+              <div class="tabs-toolbar">
+                <button id="new-tab" class="new-tab" title="Open a new tab"><span data-icon="plus"></span>New tab</button>
+                <button id="clear-tabs" class="icon-button" type="button" title="Close all tabs except pinned tabs and favorites in this space" aria-label="Close regular tabs" data-icon="broom" disabled></button>
+              </div>
               <div id="tabs" class="tab-list"></div>
               <div id="empty-tabs" class="empty-tabs" hidden><span data-icon="sprout"></span><p>A little room to think.</p><span>Open a tab and make this space yours.</span></div>
             </section>
@@ -134,7 +137,7 @@
           </select>
         </div>
         <div class="settings-toggle">
-          <div><label for="show-search-bar">Show search bar</label><p id="search-bar-help">Search is always available from New tab or the keyboard shortcut.</p></div>
+          <div><label for="show-search-bar">Show search bar</label><p id="search-bar-help">Search is always available with the keyboard shortcut.</p></div>
           <input id="show-search-bar" type="checkbox" role="switch" aria-describedby="search-bar-help" checked>
         </div>
         <div class="settings-toggle">
@@ -154,7 +157,7 @@
       <div class="settings-detail"><span data-icon="shield"></span><div><strong>Just you and your tabs</strong><p>Saved pages and spaces stay on this device. No account, analytics, or external services.</p></div></div>
       <p class="fine-print">For a left sidebar, choose Left in Chrome’s side panel appearance settings. Chrome’s tab strip stays visible. Tabs return to their spaces when Chrome restores your previous session. Enable “Continue where you left off” in Chrome’s startup settings.</p>
       <p class="fine-print">Outline icons by Lucide, bundled on this device. ISC / MIT licenses included.</p>
-      <div class="settings-brand"><img class="brand-mark" src="icons/mark.svg" alt="" width="32" height="32"><div>Arclet <span>0.10.0</span><p>Inspired by Arc. Independently made.</p></div></div>
+      <div class="settings-brand"><img class="brand-mark" src="icons/mark.svg" alt="" width="32" height="32"><div>Arclet <span>0.11.0</span><p>Inspired by Arc. Independently made.</p></div></div>
     </dialog>
 
     <div id="context-menu" class="context-menu" role="menu" aria-label="Actions" hidden></div>

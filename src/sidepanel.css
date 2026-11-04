@@ -120,10 +120,10 @@
   .folder-heading[aria-expanded="false"] .folder-chevron { transform: rotate(-90deg); }
   .folder-children { margin: 2px 0 6px 16px; padding-left: 6px; }
   .folder-empty { padding: 8px 10px 12px; font-size: 0.769231rem; line-height: 1.6; color: var(--faint); }
-  .new-tab { display: flex; align-items: center; gap: 10px; padding: 10px; width: 100%; text-align: left; border-radius: 8px; color: var(--muted); font-size: 0.846154rem; margin-bottom: 4px; }
+  .tabs-toolbar { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .new-tab { display: flex; align-items: center; gap: 10px; padding: 10px; flex: 1; min-width: 0; text-align: left; border-radius: 8px; color: var(--muted); font-size: 0.846154rem; }
   .new-tab svg { width: 16px; height: 16px; color: var(--icon); }
   .new-tab:hover { background: var(--hover); color: var(--text); }
-  .new-tab kbd { margin-left: auto; font-size: 0.692308rem; opacity: .6; }
   .empty-tabs { text-align: center; color: var(--faint); padding: 45px 8px; }
   .empty-tabs svg { width: 31px; height: 31px; margin: 0 auto 15px; opacity: .6; }
   .empty-tabs p { color: var(--muted); font-size: 0.923077rem; margin-bottom: 7px; }

@@ -39,6 +39,7 @@ let toastTimer;
 let refreshingPage = false;
 let navigatingPage = false;
 let copyingUrl = false;
+let clearingTabs = false;
 let draggingId = null;
 let draggingPinned = false;
 let draggingFavorites = false;
@@ -61,7 +62,6 @@ const shortcut = isMac ? '⌘ K' : 'Ctrl K';
 $('#search-shortcut').textContent = shortcut;
 $('#settings-shortcut').textContent = shortcut;
 $('#panel-shortcut').textContent = isMac ? '⌘ ⇧ E' : 'Ctrl Shift E';
-$('#new-tab kbd').textContent = shortcut;
 
 function toast(message, error = false) {
   clearTimeout(toastTimer);
@@ -414,6 +414,7 @@ function openPinFolders(page, x, y) {
 function renderTabs() {
   const list = $('#tabs');
   const tabs = openTabsForSpace(state.tabs, state.pins, state.spaceId, state.favorites);
+  $('#clear-tabs').disabled = clearingTabs || !tabs.some(tab => !tab.pinned);
   $('#empty-tabs').hidden = tabs.length > 0;
   const allSaved = !tabs.length && state.tabs.some(tab => tab.spaceId === state.spaceId);
   $('#empty-tabs p').textContent = allSaved ? 'Your tabs are saved above.' : 'A little room to think.';
@@ -593,7 +594,17 @@ async function chooseSearch(index) {
 }
 
 $('#search-button').addEventListener('click', openSearch);
-$('#new-tab').addEventListener('click', openSearch);
+$('#new-tab').addEventListener('click', () => {
+  if (state) command('NEW_TAB', { spaceId: state.spaceId });
+});
+$('#clear-tabs').addEventListener('click', async () => {
+  if (!state) return;
+  clearingTabs = true;
+  $('#clear-tabs').disabled = true;
+  await command('CLOSE_OPEN_TABS', { mode: 'regular', spaceId: state.spaceId }, 'Regular tabs closed.');
+  clearingTabs = false;
+  renderTabs();
+});
 $('#close-search').addEventListener('click', () => $('#search-dialog').close());
 $('#search-input').addEventListener('input', () => renderSearch());
 $('#search-input').addEventListener('keydown', event => {

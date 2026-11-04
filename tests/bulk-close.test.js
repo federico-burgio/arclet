@@ -22,6 +22,27 @@ async function fixture() {
 }
 const ids = async browser => (await browser.api.tabs.query({})).map(tab => tab.id);
 
+test('broom cleanup preserves Chrome pins, Arclet pins, favorites, and other spaces and windows', async () => {
+  const browser = await fixture();
+  browser.change(1, { pinned: true });
+  const before = await browser.run();
+  const state = await browser.run('CLOSE_OPEN_TABS', { mode: 'regular', spaceId: 'personal' });
+  assert.deepEqual(await ids(browser), [1, 2, 3, 5, 7, 8, 10]);
+  assert.deepEqual(state.pins, before.pins);
+  assert.deepEqual(state.favorites, before.favorites);
+  assert.equal(browser.live.tabSpaces[1], 'personal');
+  for (const id of [4, 6, 9]) assert.equal(browser.live.tabSpaces[id], undefined);
+  assert.ok((await browser.run('RESTORE_TAB')).tabs.some(tab => tab.url === 'https://last.test/'));
+});
+
+test('broom cleanup is a no-op when a space has only protected tabs', async () => {
+  const browser = await fixture();
+  await browser.run('CLOSE_OPEN_TABS', { mode: 'regular', spaceId: 'personal' });
+  const remaining = await ids(browser);
+  await browser.run('CLOSE_OPEN_TABS', { mode: 'regular', spaceId: 'personal' });
+  assert.deepEqual(await ids(browser), remaining);
+});
+
 test('close all affects only visible open tabs in the requested space and window', async () => {
   const browser = await fixture();
   const before = await browser.run();

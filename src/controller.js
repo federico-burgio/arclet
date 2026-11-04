@@ -198,11 +198,12 @@ export function createController(api, notify = () => {}) {
         break;
       }
       case 'CLOSE_OPEN_TABS': {
-        if (!['all', 'below'].includes(payload.mode)) throw new Error('Choose which open tabs to close.');
+        if (!['all', 'below', 'regular'].includes(payload.mode)) throw new Error('Choose which open tabs to close.');
         const targetSpace = payload.spaceId ?? spaceId;
         requireSpace(data, targetSpace);
         const tabs = getState(windowId, state).tabs;
         let targets = openTabsForSpace(tabs, data.pins, targetSpace, data.favorites);
+        if (payload.mode === 'regular') targets = targets.filter(tab => !tab.pinned);
         if (payload.mode === 'below') {
           await tabInWindow(payload.id);
           const index = targets.findIndex(tab => tab.id === payload.id);
