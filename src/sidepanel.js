@@ -36,6 +36,9 @@ let state;
 let revision = 0;
 let refreshTimer;
 let toastTimer;
+let refreshingPage = false;
+let navigatingPage = false;
+let copyingUrl = false;
 let draggingId = null;
 let draggingPinned = false;
 let draggingFavorites = false;
@@ -154,7 +157,8 @@ function applyState(next) {
   state = next;
   document.documentElement.style.setProperty('--font-scale', state.fontScale / 100);
   applyTheme();
-  $('#search-button').hidden = !state.showSearchBar;
+  $('#search-toolbar').hidden = !state.showSearchBar;
+  updatePageActions();
   $('#show-search-bar').checked = state.showSearchBar;
   $('#show-favorite-labels').checked = state.showFavoriteLabels;
   $('#favorites-per-row').value = String(state.favoritesPerRow);
@@ -171,6 +175,46 @@ function applyState(next) {
 }
 
 function currentTab() { return state?.tabs.find(tab => tab.active); }
+function updatePageActions() {
+  const tab = currentTab();
+  $('#back-page').disabled = navigatingPage || !tab;
+  $('#forward-page').disabled = navigatingPage || !tab;
+  $('#refresh-page').disabled = refreshingPage || !tab;
+  $('#copy-url').disabled = copyingUrl || !tab || !(tab.url || tab.pendingUrl);
+}
+async function navigatePage(direction) {
+  navigatingPage = true;
+  updatePageActions();
+  await command('NAVIGATE_ACTIVE_TAB', { direction });
+  navigatingPage = false;
+  updatePageActions();
+}
+$('#back-page').addEventListener('click', () => navigatePage('back'));
+$('#forward-page').addEventListener('click', () => navigatePage('forward'));
+$('#refresh-page').addEventListener('click', async () => {
+  refreshingPage = true;
+  updatePageActions();
+  await command('RELOAD_ACTIVE_TAB', {}, platform.demo ? 'Preview page refreshed.' : 'Page refreshed.');
+  refreshingPage = false;
+  updatePageActions();
+});
+$('#copy-url').addEventListener('click', async () => {
+  copyingUrl = true;
+  updatePageActions();
+  try {
+    // Query again so a navigation or activation since the last render cannot copy an old URL.
+    const fresh = await platform.request('GET_STATE');
+    const tab = fresh.tabs.find(tab => tab.active);
+    const url = tab?.url || tab?.pendingUrl;
+    if (!url) throw new Error('Open a page with an address first.');
+    await navigator.clipboard.writeText(url);
+    toast('URL copied.');
+  } catch (error) { toast(error.message, true); }
+  finally {
+    copyingUrl = false;
+    updatePageActions();
+  }
+});
 function saveCurrent(kind) {
   const tab = currentTab();
   if (!tab) { toast('Open a page first.', true); return; }
@@ -379,6 +423,15 @@ function renderTabs() {
     const row = make('div', `tab-row${tab.active ? ' active' : ''}${tab.discarded ? ' discarded' : ''}`);
     row.draggable = true;
     row.dataset.tabId = tab.id;
+    row.addEventListener('mousedown', event => {
+      if (event.button === 1) event.preventDefault();
+    });
+    row.addEventListener('auxclick', event => {
+      if (event.button !== 1) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!tab.pinned) command('CLOSE_REGULAR_TAB', { id: tab.id });
+    });
     const main = button(`${tab.title || 'New tab'}\n${tab.url || ''}`, null, 'tab-main', () => command('ACTIVATE_TAB', { id: tab.id }));
     main.dataset.focusKey = `tab-${tab.id}`;
     if (tab.active) main.setAttribute('aria-current', 'page');

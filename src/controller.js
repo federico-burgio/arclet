@@ -173,6 +173,30 @@ export function createController(api, notify = () => {}) {
         await api.tabs.remove(payload.id);
         forgetTab(state, payload.id);
         break;
+      case 'CLOSE_REGULAR_TAB': {
+        const tab = await tabInWindow(payload.id);
+        const visible = openTabsForSpace(getState(windowId, state).tabs, data.pins, live.tabSpaces[tab.id], data.favorites);
+        if (tab.pinned || !visible.some(item => item.id === tab.id)) {
+          throw new Error('Pinned and favorite tabs cannot be closed with middle-click.');
+        }
+        await api.tabs.remove(tab.id);
+        forgetTab(state, tab.id);
+        break;
+      }
+      case 'RELOAD_ACTIVE_TAB': {
+        const tab = state.tabs.find(tab => tab.windowId === windowId && tab.active);
+        if (!tab) throw new Error('Open a page first.');
+        await api.tabs.reload(tab.id);
+        break;
+      }
+      case 'NAVIGATE_ACTIVE_TAB': {
+        if (!['back', 'forward'].includes(payload.direction)) throw new Error('Choose Back or Forward.');
+        const tab = state.tabs.find(tab => tab.windowId === windowId && tab.active);
+        if (!tab) throw new Error('Open a page first.');
+        if (payload.direction === 'back') await api.tabs.goBack(tab.id);
+        else await api.tabs.goForward(tab.id);
+        break;
+      }
       case 'CLOSE_OPEN_TABS': {
         if (!['all', 'below'].includes(payload.mode)) throw new Error('Choose which open tabs to close.');
         const targetSpace = payload.spaceId ?? spaceId;

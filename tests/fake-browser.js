@@ -8,6 +8,8 @@ export function fakeBrowser(initial = []) {
   let current = clone(initial);
   let nextId = 1000;
   const closed = [];
+  const reloaded = [];
+  const navigated = [];
   const storage = store => ({ get: async key => ({ [key]: clone(store()[key]) }), set: async values => Object.assign(store(), clone(values)) });
   const find = id => { const tab = current.find(tab => tab.id === id); if (!tab) throw new Error('No such tab'); return tab; };
   const reindex = () => {
@@ -19,6 +21,9 @@ export function fakeBrowser(initial = []) {
     tabs: {
       query: async ({ windowId } = {}) => clone(current.filter(tab => windowId === undefined || tab.windowId === windowId)),
       get: async id => clone(find(id)),
+      reload: async id => { find(id); reloaded.push(id); },
+      goBack: async id => { find(id); navigated.push({ id, direction: 'back' }); },
+      goForward: async id => { find(id); navigated.push({ id, direction: 'forward' }); },
       create: async ({ url, windowId, active }) => {
         if (active) current.filter(tab => tab.windowId === windowId).forEach(tab => { tab.active = false; });
         const tab = { id: nextId++, windowId, url, active, title: url, pinned: false, index: current.filter(tab => tab.windowId === windowId).length };
@@ -59,7 +64,7 @@ export function fakeBrowser(initial = []) {
   };
   let controller = createController(api);
   return {
-    api, local, get live() { return session.live; }, get controller() { return controller; },
+    api, local, reloaded, navigated, get live() { return session.live; }, get controller() { return controller; },
     run: (type = 'GET_STATE', payload = {}, windowId = 1) => controller.dispatch({ type, payload, windowId }),
     setTabs: tabs => { current = clone(tabs); },
     change: (id, values) => Object.assign(find(id), clone(values)),

@@ -40,12 +40,27 @@ export function createDemoApi() {
     return tab;
   };
   const reindex = () => tabs.forEach((tab, index) => { tab.index = index; });
+  const histories = new Map([[1, { index: 1, entries: [
+    { url: 'https://www.are.na/explore', title: 'Explore — Are.na' },
+    { url: tabs[0].url, title: tabs[0].title }
+  ] }]]);
+  const navigate = (id, delta) => {
+    const tab = find(id);
+    const history = histories.get(id);
+    const entry = history?.entries[history.index + delta];
+    if (!entry) throw new Error(delta < 0 ? 'No previous page in this tab.' : 'No next page in this tab.');
+    history.index += delta;
+    Object.assign(tab, entry);
+  };
   const api = {
     storage: { local: storage(local), session: storage(session) },
     tabs: {
       onCreated: created, onRemoved: removed,
       query: async ({ windowId } = {}) => clone(tabs.filter(tab => windowId === undefined || tab.windowId === windowId)),
       get: async id => clone(find(id)),
+      reload: async id => { find(id); },
+      goBack: async id => navigate(id, -1),
+      goForward: async id => navigate(id, 1),
       create: async ({ windowId, url, active }) => {
         if (active) tabs.filter(tab => tab.windowId === windowId).forEach(tab => { tab.active = false; });
         const tab = { id: nextId++, windowId, url, title: url === 'chrome://newtab/' ? 'New tab' : new URL(url).hostname, active, pinned: false, mutedInfo: { muted: false }, status: 'complete', index: tabs.length };

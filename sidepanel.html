@@ -12,9 +12,15 @@
   </head>
   <body>
     <main class="sidebar" aria-label="Arclet tab manager">
-      <button id="search-button" class="search-launcher" aria-label="Search tabs or enter a URL">
-        <span data-icon="search"></span><span>Search or enter a URL</span><kbd id="search-shortcut">⌘ K</kbd>
-      </button>
+      <div id="search-toolbar" class="search-toolbar" role="group" aria-label="Current page and search">
+        <button id="back-page" class="icon-button" type="button" title="Go back" aria-label="Go back" data-icon="arrow-left" disabled></button>
+        <button id="forward-page" class="icon-button" type="button" title="Go forward" aria-label="Go forward" data-icon="arrow-right" disabled></button>
+        <button id="refresh-page" class="icon-button" type="button" title="Refresh current page" aria-label="Refresh current page" data-icon="rotate-cw" disabled></button>
+        <button id="copy-url" class="icon-button" type="button" title="Copy current URL" aria-label="Copy current URL" data-icon="copy" disabled></button>
+        <button id="search-button" class="search-launcher" aria-label="Search tabs or enter a URL">
+          <span data-icon="search"></span><span>Search or enter a URL</span><kbd id="search-shortcut">⌘ K</kbd>
+        </button>
+      </div>
 
       <section class="favorites-section" aria-label="Favorites">
         <div id="favorites" class="favorites"></div>
@@ -148,7 +154,7 @@
       <div class="settings-detail"><span data-icon="shield"></span><div><strong>Just you and your tabs</strong><p>Saved pages and spaces stay on this device. No account, analytics, or external services.</p></div></div>
       <p class="fine-print">For a left sidebar, choose Left in Chrome’s side panel appearance settings. Chrome’s tab strip stays visible. Tabs return to their spaces when Chrome restores your previous session. Enable “Continue where you left off” in Chrome’s startup settings.</p>
       <p class="fine-print">Outline icons by Lucide, bundled on this device. ISC / MIT licenses included.</p>
-      <div class="settings-brand"><img class="brand-mark" src="icons/mark.svg" alt="" width="32" height="32"><div>Arclet <span>0.9.0</span><p>Inspired by Arc. Independently made.</p></div></div>
+      <div class="settings-brand"><img class="brand-mark" src="icons/mark.svg" alt="" width="32" height="32"><div>Arclet <span>0.10.0</span><p>Inspired by Arc. Independently made.</p></div></div>
     </dialog>
 
     <div id="context-menu" class="context-menu" role="menu" aria-label="Actions" hidden></div>

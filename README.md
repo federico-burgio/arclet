@@ -23,12 +23,14 @@ The default shortcut is **⌘ Shift E** on macOS or **Ctrl Shift E** elsewhere. 
 - **Custom icons and colors** for spaces, pinned folders, pinned pages, and favorites. Choose from 2,019 searchable [Lucide](https://lucide.dev/) outline icons, with preset colors, a custom color picker, or an automatic theme color. Right-click saved pages → **Customize icon**; **Use site icon** restores the favicon. Edit a space or folder to choose its icon separately from the space’s background palette. The entire library works offline.
 - **A simpler tab list:** no Open tabs heading or count bar. Right-click **New tab** or the selected space to **Restore last closed tab**.
 - **Search and navigation** with **⌘ K / Ctrl K**, while the sidebar has keyboard focus. Search tabs across spaces, switch with arrow keys and Enter, or click the bottom result to open a URL or Google search. Bare domains and localhost addresses work.
+- **Current-page actions:** **Back → Forward → Refresh → Copy URL** sit immediately before the search field. They act on the active Chrome tab in the sidebar’s window, including when its page is saved or a different space is selected. Back and Forward use that tab’s own browser history and report when no previous or next page exists. Copy URL writes the current address only when clicked. These actions are disabled when there is no active page.
+- **Middle-click to close:** click the middle mouse button on a regular open-tab row to close it without activating it. Chrome-pinned tabs, Arclet pinned pages, and favorites are protected; explicitly closing or unpinning them remains available through the existing controls. Closed regular tabs can be restored as usual.
 - **Light, dark, and system appearance** from the settings button. Optionally enable **Settings → Background → Custom background color** and choose a color or enter a six-digit hex value. This main background override persists across windows and restarts, independently of space colors. Disable it or choose **Use theme default** to restore the current theme’s background.
-- **Neutral gray interface:** settings, menus, dialogs, cards, buttons, and focus outlines use the gray palette below, independently of the selected space. Slate spaces use the neutral tab-area color; other palettes and custom backgrounds remain available.
-- **Custom space backgrounds:** create or edit a space, enable **Custom background color**, and use the picker or hex input. The color applies to that space’s tab area and selected footer tab in every theme, independently of the main background and icon color. Choose a palette, disable the toggle, or select **Use palette** to return to the existing theme-aware palettes. Changes apply when you save the space and persist across restarts.
+- **Neutral gray interface:** settings, menus, dialogs, primary buttons, and focus outlines use the gray palette below, independently of the selected space. The compact search bar and favorite tiles have no borders and follow the selected space’s tab-area background, including custom colors; their hover states retain that color. Slate spaces use the neutral tab-area color; other palettes and custom backgrounds remain available.
+- **Custom space backgrounds:** create or edit a space, enable **Custom background color**, and use the picker or hex input. The color applies to that space’s tab area, search bar, favorite tiles, and selected footer tab in every theme, independently of the main background and icon color. Choose a palette, disable the toggle, or select **Use palette** to return to the existing theme-aware palettes. Changes apply when you save the space and persist across restarts.
 - **Native OS typography:** interface text, form controls, and keyboard shortcuts use the operating system’s UI font.
 - **Adjustable font size:** choose 90%, 100% (default), 110%, 125%, or 150% in **Settings → Sidebar → Font size**. Text throughout Arclet scales immediately, including tabs, favorites, menus, and settings. The preference applies across windows and survives restarts.
-- **Optional search bar:** open Settings at the footer’s right edge and toggle **Show search bar**. This preference survives restarts and applies to every window. New tab and the search shortcut remain available when the bar is hidden.
+- **Optional search bar:** open Settings at the footer’s right edge and toggle **Show search bar** to show or hide the search field and its page-action buttons. This preference survives restarts and applies to every window. New tab and the search shortcut remain available when the bar is hidden.
 - **Optional favorite labels:** use **Settings → Show favorite labels** to show site names or use icons alone. The preference survives restarts; titles remain available in tooltips and accessible names.
 - **Favorites per row:** choose 1–8 in **Settings → Sidebar → Favorites per row** (default: 4). Tiles wrap into additional rows, and the favorites area scrolls after reaching 35% of the sidebar height. If you have fewer favorites than the chosen count, they fill the available row. The preference applies across windows and survives restarts.
 - **Multiple windows** with independently selected spaces. Tab actions stay within their originating window.
@@ -82,7 +84,7 @@ Open `http://127.0.0.1:4173/sidepanel.html?demo=1`. This explicit preview uses s
 ```sh
 npm test          # State, concurrency, navigation, and tab-action regression tests
 npm run check    # Manifest, resources, CSP, IDs, and JS syntax
-npm run package  # Produces dist/arclet/ and dist/arclet-0.9.0.zip
+npm run package  # Produces dist/arclet/ and dist/arclet-0.10.0.zip
 ```
 
 After changing source files, click Reload on the extension’s card at `chrome://extensions`, then close and reopen the panel. There are no remote scripts, fonts, or build tools.
@@ -113,6 +115,7 @@ For the restart integration test, set `ARCLET_PLAYWRIGHT` to an installed Playwr
 | `storage` | Save spaces, shortcuts, appearance, and a local tab-recovery checkpoint on this device. |
 | `sessions` | Restore a recently closed tab when requested. |
 | `favicon` | Read Chrome’s favicon resources without a third-party icon service. |
+| `clipboardWrite` | Copy the active tab’s URL when you click Copy URL. Arclet never reads the clipboard. |
 
 No analytics, account, backend, host permissions, or webpage-content access. Opening a URL or submitting a Google search naturally navigates the browser to that service. Removing the extension removes its saved data.
 
