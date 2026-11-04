@@ -4,7 +4,11 @@ export const savedPage = (data, id) => savedPages(data).find(page => page.id ===
 export function sameUrl(left, right) {
   try { return new URL(left).href === new URL(right).href; } catch { return false; }
 }
-export const isHome = (page, tab) => sameUrl(page.url, tab.url || tab.pendingUrl);
+export const isHome = (page, tab) => {
+  const url = tab.url || tab.pendingUrl;
+  const home = tab.savedHome;
+  return sameUrl(page.url, url) || Boolean(home && home.pageId === page.id && sameUrl(home.root, page.url) && home.urls.some(alias => sameUrl(alias, url)));
+};
 export const ownedTab = (state, pageId, windowId) => state.tabs.find(tab => tab.windowId === windowId && state.live.pageOwners[tab.id] === pageId);
 export function pageSession(page, tabs) {
   const tab = tabs.find(tab => tab.savedPageId === page.id);
@@ -16,7 +20,7 @@ export function bindSavedTab(state, page, tab) {
   live.pageOwners[tab.id] = page.id;
   live.ownerKnown[tab.id] = true;
   live.ownerWindows[tab.id] = tab.windowId;
-  live.ownerSnapshots[tab.id] = { pageId: page.id, url: tab.url || tab.pendingUrl || page.url, windowId: tab.windowId, spaceId: page.spaceId ?? live.tabSpaces[tab.id], incognito: !!tab.incognito };
+  live.ownerSnapshots[tab.id] = { pageId: page.id, url: tab.url || tab.pendingUrl || page.url, windowId: tab.windowId, spaceId: page.spaceId ?? live.tabSpaces[tab.id], incognito: !!tab.incognito, ...(live.savedHomes[tab.id] ? { savedHome: live.savedHomes[tab.id] } : {}) };
   if (page.spaceId) live.tabSpaces[tab.id] = page.spaceId;
 }
 
@@ -39,7 +43,7 @@ export function reconcileSavedTabs(state, tabs) {
   const ids = new Set(tabs.map(tab => String(tab.id)));
   // Keep closing-window bindings until the removal handler preserves its checkpoint.
   for (const id of Object.keys(live.pageOwners)) {
-    if (!byId.has(live.pageOwners[id])) { delete live.pageOwners[id]; delete live.ownerSnapshots[id]; }
+    if (!byId.has(live.pageOwners[id])) { delete live.pageOwners[id]; delete live.ownerSnapshots[id]; delete live.savedHomes[id]; delete live.homeNavigations[id]; }
   }
   const groups = new Map();
   for (const tab of tabs) {
@@ -52,14 +56,14 @@ export function reconcileSavedTabs(state, tabs) {
   for (const group of groups.values()) {
     // An existing destination-window instance wins over an arriving tab.
     group.sort((a, b) => Number(live.ownerWindows[b.id] === b.windowId) - Number(live.ownerWindows[a.id] === a.windowId) || a.index - b.index);
-    group.slice(1).forEach(tab => { delete live.pageOwners[tab.id]; delete live.ownerSnapshots[tab.id]; live.ownerKnown[tab.id] = true; });
+    group.slice(1).forEach(tab => { delete live.pageOwners[tab.id]; delete live.ownerSnapshots[tab.id]; delete live.savedHomes[tab.id]; delete live.homeNavigations[tab.id]; live.ownerKnown[tab.id] = true; });
   }
   for (const tab of tabs) {
     if (live.pageOwners[tab.id]) {
       const page = byId.get(live.pageOwners[tab.id]);
       if (page.spaceId) live.tabSpaces[tab.id] = page.spaceId;
       live.ownerWindows[tab.id] = tab.windowId;
-      live.ownerSnapshots[tab.id] = { pageId: page.id, url: tab.url || tab.pendingUrl || page.url, windowId: tab.windowId, spaceId: live.tabSpaces[tab.id], incognito: !!tab.incognito };
+      live.ownerSnapshots[tab.id] = { pageId: page.id, url: tab.url || tab.pendingUrl || page.url, windowId: tab.windowId, spaceId: live.tabSpaces[tab.id], incognito: !!tab.incognito, ...(live.savedHomes[tab.id] ? { savedHome: live.savedHomes[tab.id] } : {}) };
     }
   }
   // One-time legacy adoption. Newly created or explicitly unowned tabs never
@@ -84,10 +88,10 @@ export function reconcileSavedTabs(state, tabs) {
 
 export function clearSavedOwnership(state, pageId) {
   for (const [id, owner] of Object.entries(state.live.pageOwners)) {
-    if (owner === pageId) { delete state.live.pageOwners[id]; delete state.live.ownerSnapshots[id]; state.live.ownerKnown[id] = true; }
+    if (owner === pageId) { delete state.live.pageOwners[id]; delete state.live.ownerSnapshots[id]; delete state.live.savedHomes[id]; delete state.live.homeNavigations[id]; state.live.ownerKnown[id] = true; }
   }
   for (const window of [...state.workspace.windows, ...state.live.recovery.windows]) {
-    for (const record of window.tabs) if (record.savedPageId === pageId) record.savedPageId = null;
+    for (const record of window.tabs) if (record.savedPageId === pageId) { record.savedPageId = null; delete record.savedHome; }
   }
   state.live.closedPages = state.live.closedPages.filter(record => record.pageId !== pageId);
 }

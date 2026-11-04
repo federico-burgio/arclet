@@ -33,4 +33,11 @@ chrome.tabs.onActivated.addListener(info => safely(controller.tabActivated(info)
 chrome.tabs.onMoved.addListener(() => safely(controller.tabsChanged()));
 chrome.tabs.onAttached.addListener(() => safely(controller.tabsChanged()));
 chrome.tabs.onDetached.addListener(notify);
+for (const [event, type] of Object.entries({ onBeforeNavigate: 'before', onCommitted: 'committed',
+  onDOMContentLoaded: 'ready', onCompleted: 'completed', onErrorOccurred: 'error',
+  onHistoryStateUpdated: 'history', onReferenceFragmentUpdated: 'fragment' })) {
+  chrome.webNavigation[event].addListener(details => {
+    if (details.frameId === 0) safely(controller.navigationEvent(type, details));
+  });
+}
 safely(controller.initialize());

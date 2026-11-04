@@ -1,3 +1,4 @@
+import { savedHome, observeSavedNavigation } from './saved-home.js';
 import { COLORS, DEFAULT_FAVORITES_PER_ROW, MAX_FAVORITES_PER_ROW, FONT_SCALES, DEFAULT_FONT_SCALE, defaultData, destination, safeSavedUrl, iconAppearance, openTabsForSpace } from './model.js';
 import { preparePersistence, reconcileWorkspace, forgetTab } from './persistence.js';
 import { normalizePinnedOrder, movePinnedItem, pinnedEntries, removePinnedFolder } from './pinned-order.js';
@@ -53,7 +54,7 @@ export function createController(api, notify = () => {}) {
     const { data, live } = state;
     const tabs = state.tabs.filter(tab => tab.windowId === windowId);
     const spaceId = selectedSpace(data, live, windowId);
-    return { ...data, spaceId, tabs: tabs.map(tab => ({ ...tab, spaceId: live.tabSpaces[tab.id], savedPageId: live.pageOwners[tab.id] ?? null })) };
+    return { ...data, spaceId, tabs: tabs.map(tab => ({ ...tab, spaceId: live.tabSpaces[tab.id], savedPageId: live.pageOwners[tab.id] ?? null, ...(savedHome(state, tab.id) ? { savedHome: savedHome(state, tab.id) } : {}) })) };
   }
 
   async function rememberClosed(state, id) {
@@ -363,6 +364,7 @@ export function createController(api, notify = () => {}) {
           live.ownerKnown[id] = true;
           const page = record && savedPage(data, record.pageId);
           if (page && !ownedTab(state, page.id, windowId)) {
+            if (record.savedHome) live.savedHomes[id] = record.savedHome;
             bindSavedTab(state, page, { ...restored.tab, windowId });
             if (page.spaceId) live.windowSpaces[windowId] = page.spaceId;
           }
@@ -417,6 +419,14 @@ export function createController(api, notify = () => {}) {
       notify();
     }),
     dispatch: message => queue(() => run(message)),
+    navigationEvent: (type, event) => queue(async () => {
+      const state = await load();
+      await synchronize(state);
+      if (!observeSavedNavigation(state, type, event)) return;
+      await synchronize(state);
+      await save(state);
+      notify();
+    }),
     tabCreated: tab => queue(async () => {
       const state = await load();
       state.live.ownerKnown[tab.id] = true;
@@ -440,6 +450,8 @@ export function createController(api, notify = () => {}) {
         delete state.live.ownerKnown[id];
         delete state.live.ownerWindows[id];
         delete state.live.ownerSnapshots[id];
+        delete state.live.savedHomes[id];
+        delete state.live.homeNavigations[id];
       } else {
         await rememberClosed(state, id);
         forgetTab(state, id);
@@ -451,10 +463,11 @@ export function createController(api, notify = () => {}) {
     tabReplaced: (added, removed) => queue(async () => {
       const state = await load();
       if (state.live.tabSpaces[removed]) state.live.tabSpaces[added] = state.live.tabSpaces[removed];
-      for (const key of ['tabKeys', 'fixedTabs', 'noRecovery', 'pageOwners', 'ownerKnown', 'ownerWindows', 'ownerSnapshots']) {
+      for (const key of ['tabKeys', 'fixedTabs', 'noRecovery', 'pageOwners', 'ownerKnown', 'ownerWindows', 'ownerSnapshots', 'savedHomes']) {
         if (state.live[key][removed]) state.live[key][added] = state.live[key][removed];
         delete state.live[key][removed];
       }
+      delete state.live.homeNavigations[removed];
       delete state.live.tabSpaces[removed];
       await synchronize(state);
       await save(state);

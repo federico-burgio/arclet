@@ -1,5 +1,6 @@
 // Chrome tab/window IDs last only for a browser session. Keep a separate checkpoint
 // of URLs and tab order, and consume its records one-to-one as Chrome restores tabs.
+import { savedHome } from './saved-home.js';
 import { reconcileSavedTabs } from './saved-tabs.js';
 
 const emptyPage = url => !url || ['about:blank', 'chrome://newtab/', 'chrome://newtab', 'chrome://new-tab-page/'].includes(url);
@@ -20,6 +21,8 @@ export function preparePersistence(state) {
   live.ownerWindows ??= {};
   live.ownerSnapshots ??= {};
   live.closedPages ??= [];
+  live.savedHomes ??= {};
+  live.homeNavigations ??= {};
   live.legacyOwnerCandidates ??= {};
   if (!live.recovery) {
     live.recovery = { windows: structuredClone(workspace.windows), bindings: {}, used: {} };
@@ -111,6 +114,7 @@ function recoverTabs(state, id, current) {
       if (record.savedPageId && matches.length === 1 && duplicates.length === 1 && !recovery.ambiguousWindows?.[id]) {
         live.pageOwners[tab.id] = record.savedPageId;
         live.ownerWindows[tab.id] = id;
+        if (record.savedHome) live.savedHomes[tab.id] = record.savedHome;
       }
     } else {
       live.legacyOwnerCandidates[tab.id] = true;
@@ -148,7 +152,8 @@ export function reconcileWorkspace(state, tabs) {
     const records = current.filter(tab => !tab.incognito).map(tab => ({
       key: live.tabKeys[tab.id], spaceId: live.tabSpaces[tab.id],
       url: tab.url || '', ...(tab.pendingUrl ? { pendingUrl: tab.pendingUrl } : {}),
-      index: tab.index, pinned: Boolean(tab.pinned), savedPageId: live.pageOwners[tab.id] ?? null
+      index: tab.index, pinned: Boolean(tab.pinned), savedPageId: live.pageOwners[tab.id] ?? null,
+      ...(savedHome(state, tab.id) ? { savedHome: savedHome(state, tab.id) } : {})
     }));
     if (!records.length) continue;
     const saved = live.recovery.windows.find(window => window.key === live.recovery.bindings[id]);
@@ -192,5 +197,7 @@ export function forgetTab(state, id) {
   delete state.live.ownerKnown[id];
   delete state.live.ownerWindows[id];
   delete state.live.ownerSnapshots[id];
+  delete state.live.savedHomes[id];
+  delete state.live.homeNavigations[id];
   delete state.live.legacyOwnerCandidates[id];
 }

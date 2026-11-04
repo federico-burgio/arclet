@@ -48,9 +48,15 @@ Legacy saved URLs are adopted only where ownership is clear. Already-navigated l
 
 Closing a window during browser shutdown preserves the ownership checkpoint for Chrome restoration. Worker suspension and tab replacement retain live ownership. Removing a saved item clears both current and recoverable ownership for that item. Incognito tab URLs and ownership metadata are excluded from the on-disk checkpoint; explicitly saving a page still saves its home URL.
 
-## Home URL and first-version limits
+## Home URL and redirect detection
 
-Home comparison uses the full normalized URL, including meaningful query parameters and fragments. Different domains do not break ownership. Initial automatic redirects always preserve ownership but may show Away if their destination differs from the saved URL. Treating a verified redirect destination as a home alias is deferred until it can be distinguished reliably from user navigation; saved URLs are never silently rewritten.
+Home comparison uses the full normalized URL, including meaningful query parameters and fragments. Different domains do not break ownership. A verified automatic redirect from home counts as home too; saved URLs are never silently rewritten.
+
+Arclet learns a destination only for the associated running instance, using Chrome's top-level navigation events and redirect qualifiers. HTTP redirects from the saved URL (or a verified home destination) count as home. JavaScript/meta-refresh redirects also count when they occur during the initial home load, before the document is ready. An ordinary link, typed child URL, form submission, Back/Forward, or single-page route change does not teach a new home destination. Redirects originating from an Away page do not teach one either. Returning to a previously verified home destination clears the arrow.
+
+Verified destinations survive worker suspension, tab replacement and unambiguous Chrome session restoration with their owner. They are not shared across instances or included in import/export. Closing and normally reopening starts fresh at the saved URL; Return to saved URL relearns its current redirect destination and discards obsolete destinations. Private-window destinations remain in session storage only.
+
+Detection requires the `webNavigation` permission, without host permissions or reading webpage content. Existing redirected instances need a return to the saved URL (or close/reopen) to establish evidence. Late client-side redirects and ambiguous/interrupted cross-process event sequences conservatively remain Away; Arclet does not guess based on hostname similarity or rewrite saved addresses.
 
 The first version excludes Peek, domain-based link interception, automatically changing saved URLs, copying history stacks, automatic archiving, and changes to Chrome's native tab strip.
 
@@ -66,6 +72,8 @@ The first version excludes Peek, domain-based link interception, automatically c
 8. Reuse favorites across spaces, keep pins scoped, and never close/focus an instance in another window accidentally.
 9. Restore known associations across restarts; ambiguous duplicates or windows remain visible regular tabs.
 10. Preserve ownership through worker suspension, tab replacement, folder operations, and browser tab moves without losing pages.
+11. Open a saved URL that automatically redirects: its final home has no Away arrow. Follow a child link, including one that redirects: show Away. Back to verified home clears it.
+12. Reset/reopen a redirected saved item, restore its identified session, and verify independent instances do not inherit its destinations.
 
 ## Feasibility basis
 
@@ -74,3 +82,4 @@ Chrome exposes tab navigation, activation, closure, replacement, and native Back
 - [Chrome tabs reference](https://developer.chrome.com/docs/extensions/reference/api/tabs)
 - [Chrome session restoration](https://developer.chrome.com/docs/extensions/reference/api/sessions)
 - [Arc commands distinguish close, reset, and unpin](https://start.arc.net/command-bar-actions)
+- [Chrome navigation events and redirect qualifiers](https://developer.chrome.com/docs/extensions/reference/api/webNavigation)
