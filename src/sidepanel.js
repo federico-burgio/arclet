@@ -99,16 +99,23 @@ function applyTheme() {
   root.dataset.mode = mode;
   root.style.setProperty('--space-light', color.light);
   root.style.setProperty('--space-dark', color.dark);
-  root.style.setProperty('--accent', mode === 'dark' ? color.darkAccent : color.accent);
+  root.style.setProperty('--space-accent', mode === 'dark' ? color.darkAccent : color.accent);
   if (state.backgroundColor) root.style.setProperty('--background', state.backgroundColor);
   else root.style.removeProperty('--background');
-  if (space.backgroundColor) root.style.setProperty('--folder-background', space.backgroundColor);
-  else root.style.removeProperty('--folder-background');
+  const folderBackground = space.backgroundColor || (space.color !== DEFAULT_SPACE_COLOR
+    ? `color-mix(in srgb, var(--space-${mode}) ${mode === 'dark' ? 92 : 65}%, white)` : null);
+  if (folderBackground) {
+    root.style.setProperty('--folder-background', folderBackground);
+    root.style.setProperty('--selected-space-background', 'var(--folder-background)');
+  } else {
+    root.style.removeProperty('--folder-background');
+    root.style.removeProperty('--selected-space-background');
+  }
   document.querySelector('meta[name="theme-color"]').content = getComputedStyle(root).getPropertyValue('--background').trim();
   document.querySelectorAll('[data-theme]').forEach(node => node.setAttribute('aria-pressed', String(node.dataset.theme === state.theme)));
   $('#custom-background').checked = Boolean(state.backgroundColor);
   $('#background-controls').hidden = !state.backgroundColor;
-  $('#background-color').value = state.backgroundColor ?? (mode === 'dark' ? '#303338' : '#e0e2e5');
+  $('#background-color').value = state.backgroundColor ?? (mode === 'dark' ? '#1b1e23' : '#eceef0');
   $('#background-hex').value = $('#background-color').value;
   $('#background-hex').setCustomValidity('');
 }
@@ -602,7 +609,7 @@ $('#space-background-hex').addEventListener('input', event => event.currentTarge
 $('#space-background-hex').addEventListener('change', event => {
   const input = event.currentTarget;
   const value = input.value.trim();
-  input.setCustomValidity(/^#[0-9a-f]{6}$/i.test(value) ? '' : 'Enter a six-digit hex color, such as #e0e2e5.');
+  input.setCustomValidity(/^#[0-9a-f]{6}$/i.test(value) ? '' : 'Enter a six-digit hex color, such as #f5f6f7.');
   if (input.reportValidity()) {
     selectedSpaceBackground = value.toLowerCase();
     renderSpaceOptions();
@@ -746,7 +753,7 @@ $('#background-hex').addEventListener('input', event => event.currentTarget.setC
 $('#background-hex').addEventListener('change', event => {
   const input = event.currentTarget;
   const value = input.value.trim();
-  input.setCustomValidity(/^#[0-9a-f]{6}$/i.test(value) ? '' : 'Enter a six-digit hex color, such as #e0e2e5.');
+  input.setCustomValidity(/^#[0-9a-f]{6}$/i.test(value) ? '' : 'Enter a six-digit hex color, such as #eceef0.');
   if (input.reportValidity()) setBackgroundColor(value);
 });
 $('#reset-background').addEventListener('click', () => setBackgroundColor(null));

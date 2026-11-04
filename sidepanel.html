@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
-    <meta name="theme-color" content="#e0e2e5">
+    <meta name="theme-color" content="#eceef0">
     <title>Arclet</title>
     <link rel="icon" href="icons/icon-32.png">
     <link rel="stylesheet" href="src/sidepanel.css">
@@ -69,8 +69,8 @@
             <input id="space-custom-background" type="checkbox" role="switch" aria-describedby="space-background-help">
           </div>
           <div id="space-background-controls" class="background-controls" hidden>
-            <label class="custom-color">Color<input id="space-background-color" type="color" value="#e0e2e5"></label>
-            <input id="space-background-hex" class="background-hex" type="text" aria-label="Space background hex color" spellcheck="false" maxlength="7" pattern="#[0-9a-fA-F]{6}" placeholder="#e0e2e5">
+            <label class="custom-color">Color<input id="space-background-color" type="color" value="#f5f6f7"></label>
+            <input id="space-background-hex" class="background-hex" type="text" aria-label="Space background hex color" spellcheck="false" maxlength="7" pattern="#[0-9a-fA-F]{6}" placeholder="#f5f6f7">
             <button id="reset-space-background" type="button" class="text-button">Use palette</button>
           </div>
         </fieldset>
@@ -99,7 +99,7 @@
       <p id="icon-result-count" class="fine-print" role="status"></p>
       <div id="icon-grid" class="icon-grid" role="group" aria-label="Icon library"></div>
       <button type="button" id="more-icons" class="load-icons">Show more icons</button>
-      <fieldset class="icon-colors"><legend>Icon color</legend><div id="icon-colors" class="color-options" role="group" aria-label="Icon colors"></div><label class="custom-color">Custom color<input id="icon-custom-color" type="color" value="#667180"></label></fieldset>
+      <fieldset class="icon-colors"><legend>Icon color</legend><div id="icon-colors" class="color-options" role="group" aria-label="Icon colors"></div><label class="custom-color">Custom color<input id="icon-custom-color" type="color" value="#717985"></label></fieldset>
       <div class="sheet-actions"><button type="button" class="text-button" data-close="icon-dialog">Cancel</button><button type="button" id="apply-icon" class="primary-button">Apply icon</button></div>
     </dialog>
 
@@ -114,8 +114,8 @@
           <input id="custom-background" type="checkbox" role="switch" aria-describedby="background-help">
         </div>
         <div id="background-controls" class="background-controls" hidden>
-          <label class="custom-color">Color<input id="background-color" type="color" value="#e0e2e5"></label>
-          <input id="background-hex" class="background-hex" type="text" aria-label="Background hex color" spellcheck="false" maxlength="7" pattern="#[0-9a-fA-F]{6}" placeholder="#e0e2e5">
+          <label class="custom-color">Color<input id="background-color" type="color" value="#eceef0"></label>
+          <input id="background-hex" class="background-hex" type="text" aria-label="Background hex color" spellcheck="false" maxlength="7" pattern="#[0-9a-fA-F]{6}" placeholder="#eceef0">
           <button id="reset-background" type="button" class="text-button">Use theme default</button>
         </div>
       </fieldset>
@@ -148,7 +148,7 @@
       <div class="settings-detail"><span data-icon="shield"></span><div><strong>Just you and your tabs</strong><p>Saved pages and spaces stay on this device. No account, analytics, or external services.</p></div></div>
       <p class="fine-print">For a left sidebar, choose Left in Chrome’s side panel appearance settings. Chrome’s tab strip stays visible. Tabs return to their spaces when Chrome restores your previous session. Enable “Continue where you left off” in Chrome’s startup settings.</p>
       <p class="fine-print">Outline icons by Lucide, bundled on this device. ISC / MIT licenses included.</p>
-      <div class="settings-brand"><span class="brand-mark" aria-hidden="true">a</span><div>Arclet <span>0.8.0</span><p>Inspired by Arc. Independently made.</p></div></div>
+      <div class="settings-brand"><img class="brand-mark" src="icons/mark.svg" alt="" width="32" height="32"><div>Arclet <span>0.9.0</span><p>Inspired by Arc. Independently made.</p></div></div>
     </dialog>
 
     <div id="context-menu" class="context-menu" role="menu" aria-label="Actions" hidden></div>

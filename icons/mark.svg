@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <rect width="128" height="128" rx="30" fill="#e3ddf1"/>
-  <path d="m28 88 25-52q8-16 16 0l25 52M40 66h43" fill="none" stroke="#74619e" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M70 94h25" stroke="#ca8b75" stroke-width="6" stroke-linecap="round"/>
+  <title>Arclet — Folded space</title>
+  <rect width="128" height="128" rx="28" fill="#eceef0"/>
+  <path d="M76 45 91 36C99 32 105 33 109 39 110 41 111 44 111 48V96C111 103 108 106 102 103L81 91C77 89 76 86 76 81Z" fill="#969ca5"/>
+  <path d="M17 108V61C17 49 21 43 31 36L55 21C64 15 71 16 80 20L101 30C105 32 108 35 109 39 105 33 99 32 91 36L59 55C55 58 53 61 53 67V96C53 100 51 102 47 104L24 112C20 114 17 113 17 108Z" fill="#30343b"/>
 </svg>

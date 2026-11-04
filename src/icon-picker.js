@@ -3,7 +3,7 @@ import { ICON_TAGS } from './icon-catalog.js';
 
 const $ = selector => document.querySelector(selector);
 const label = name => name.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-const swatches = { Slate: '#667180', Purple: '#8b68c0', Blue: '#477fc1', Teal: '#278a8b', Green: '#54855d', Gold: '#aa7c24', Orange: '#bf713b', Rose: '#bb5e82', Red: '#c35e5e' };
+const swatches = { Slate: '#717985', Purple: '#8b68c0', Blue: '#477fc1', Teal: '#278a8b', Green: '#54855d', Gold: '#aa7c24', Orange: '#bf713b', Rose: '#bb5e82', Red: '#c35e5e' };
 const common = ['folder', 'sun', 'briefcase', 'house', 'star', 'heart', 'bookmark', 'book-open', 'coffee', 'leaf', 'globe', 'music', 'headphones', 'camera', 'code', 'terminal', 'palette', 'lightbulb', 'rocket', 'sparkles', 'flask-conical', 'mountain', 'plane', 'gamepad-2'];
 const names = [...common, ...ICON_NAMES.filter(name => !common.includes(name))];
 let draft;
@@ -26,7 +26,7 @@ function renderPreview() {
   caption.textContent = draft.icon ? label(draft.icon) : 'Site icon';
   preview.replaceChildren(glyph, caption);
   $('#use-site-icon').setAttribute('aria-pressed', String(!draft.icon));
-  $('#icon-custom-color').value = draft.iconColor ?? '#667180';
+  $('#icon-custom-color').value = draft.iconColor ?? '#717985';
   $('.icon-colors').disabled = !draft.icon;
   for (const node of $('#icon-colors').children) node.setAttribute('aria-pressed', String((node.dataset.color || null) === draft.iconColor));
   for (const node of $('#icon-grid').children) {

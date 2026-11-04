@@ -24,6 +24,7 @@ The default shortcut is **⌘ Shift E** on macOS or **Ctrl Shift E** elsewhere. 
 - **A simpler tab list:** no Open tabs heading or count bar. Right-click **New tab** or the selected space to **Restore last closed tab**.
 - **Search and navigation** with **⌘ K / Ctrl K**, while the sidebar has keyboard focus. Search tabs across spaces, switch with arrow keys and Enter, or click the bottom result to open a URL or Google search. Bare domains and localhost addresses work.
 - **Light, dark, and system appearance** from the settings button. Optionally enable **Settings → Background → Custom background color** and choose a color or enter a six-digit hex value. This main background override persists across windows and restarts, independently of space colors. Disable it or choose **Use theme default** to restore the current theme’s background.
+- **Neutral gray interface:** settings, menus, dialogs, cards, buttons, and focus outlines use the gray palette below, independently of the selected space. Slate spaces use the neutral tab-area color; other palettes and custom backgrounds remain available.
 - **Custom space backgrounds:** create or edit a space, enable **Custom background color**, and use the picker or hex input. The color applies to that space’s tab area and selected footer tab in every theme, independently of the main background and icon color. Choose a palette, disable the toggle, or select **Use palette** to return to the existing theme-aware palettes. Changes apply when you save the space and persist across restarts.
 - **Native OS typography:** interface text, form controls, and keyboard shortcuts use the operating system’s UI font.
 - **Adjustable font size:** choose 90%, 100% (default), 110%, 125%, or 150% in **Settings → Sidebar → Font size**. Text throughout Arclet scales immediately, including tabs, favorites, menus, and settings. The preference applies across windows and survives restarts.
@@ -34,6 +35,25 @@ The default shortcut is **⌘ Shift E** on macOS or **Ctrl Shift E** elsewhere. 
 - **Spaces survive Chrome restarts.** When Chrome restores your tabs, Arclet recovers their assignments from a local checkpoint, including separate copies of the same URL.
 
 Deleting a space moves its tabs, folders, and pinned pages into the first remaining space, keeping folder membership. It does not close tabs. Tabs opened by a page inherit their opener’s space; other new tabs use the window’s selected space.
+
+## Theme palette
+
+| UI role | Light | Dark |
+| --- | --- | --- |
+| App background | `#ECEEF0` | `#1B1E23` |
+| Sidebar / tab area | `#F5F6F7` | `#23272E` |
+| Cards, menus, dialogs | `#FFFFFF` | `#2B3038` |
+| Hover background | `#E4E7EB` | `#343A43` |
+| Selected tab / space | `#D9DEE5` | `#424A56` |
+| Primary text | `#30343B` | `#ECEEF0` |
+| Secondary text | `#626973` | `#B0B7C1` |
+| Muted icons | `#717985` | `#969CA5` |
+| Borders / dividers | `#D1D6DC` | `#3C434D` |
+| Primary button | `#30343B` | `#DCE1E7` |
+| Text on primary button | `#FFFFFF` | `#23272E` |
+| Focus outline | `#626973` | `#B6BEC9` |
+
+Custom main and space backgrounds override only their respective surfaces. Colored space palettes and saved icon colors remain optional; dialogs, menus, primary buttons, and focus outlines keep the neutral theme colors.
 
 ## Chrome limitations and persistence
 
@@ -62,7 +82,7 @@ Open `http://127.0.0.1:4173/sidepanel.html?demo=1`. This explicit preview uses s
 ```sh
 npm test          # State, concurrency, navigation, and tab-action regression tests
 npm run check    # Manifest, resources, CSP, IDs, and JS syntax
-npm run package  # Produces dist/arclet/ and dist/arclet-0.8.0.zip
+npm run package  # Produces dist/arclet/ and dist/arclet-0.9.0.zip
 ```
 
 After changing source files, click Reload on the extension’s card at `chrome://extensions`, then close and reopen the panel. There are no remote scripts, fonts, or build tools.
@@ -82,7 +102,7 @@ For the restart integration test, set `ARCLET_PLAYWRIGHT` to an installed Playwr
 - `src/icon-picker.js` shares the searchable icon/color picker across saved pages, folders, and spaces.
 - `src/icon-catalog.js` contains Lucide 1.67.0 geometry and search tags; `src/LUCIDE-LICENSE.txt` includes its ISC and inherited Feather MIT notices. Regenerate with `node scripts/vendor-icons.mjs /path/to/unpacked/lucide-static-1.67.0/package`.
 - `src/platform.js` connects the panel to Chrome or the explicit demo adapter.
-- `icons/mark.svg` is the original icon source; PNG variants are bundled for Chrome.
+- `icons/mark.svg` is the Folded space icon source, also shown in Settings. Matching PNG variants are bundled for Chrome’s toolbar, extension list, and the preview favicon.
 
 ## Permissions and privacy
 

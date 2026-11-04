@@ -3,7 +3,7 @@
   "name": "Arclet — a calmer sidebar",
   "short_name": "Arclet",
   "description": "An Arc-inspired home for your tabs. Organize spaces, save favorites, and find your focus.",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "minimum_chrome_version": "116",
   "permissions": ["sidePanel", "tabs", "storage", "sessions", "favicon"],
   "background": { "service_worker": "src/background.js", "type": "module" },

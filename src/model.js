@@ -6,7 +6,7 @@ export const COLORS = {
   sand: { label: 'Sand', light: '#eee1cf', dark: '#3d3329', accent: '#956b3e', darkAccent: '#cfaa7b' },
   rose: { label: 'Rose', light: '#f0dce0', dark: '#402c34', accent: '#a35973', darkAccent: '#d99ab0' },
   ocean: { label: 'Ocean', light: '#dce6f1', dark: '#293546', accent: '#4c74a1', darkAccent: '#91b4dc' },
-  slate: { label: 'Slate', light: '#e0e2e5', dark: '#303338', accent: '#667180', darkAccent: '#acb7c6' }
+  slate: { label: 'Slate', light: '#f5f6f7', dark: '#23272e', accent: '#717985', darkAccent: '#969ca5' }
 };
 
 export const DEFAULT_SPACE_COLOR = 'slate';
