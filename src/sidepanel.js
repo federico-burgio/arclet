@@ -99,8 +99,15 @@ function applyTheme() {
   root.style.setProperty('--space-light', color.light);
   root.style.setProperty('--space-dark', color.dark);
   root.style.setProperty('--accent', mode === 'dark' ? color.darkAccent : color.accent);
+  if (state.backgroundColor) root.style.setProperty('--background', state.backgroundColor);
+  else root.style.removeProperty('--background');
   document.querySelector('meta[name="theme-color"]').content = getComputedStyle(root).getPropertyValue('--background').trim();
   document.querySelectorAll('[data-theme]').forEach(node => node.setAttribute('aria-pressed', String(node.dataset.theme === state.theme)));
+  $('#custom-background').checked = Boolean(state.backgroundColor);
+  $('#background-controls').hidden = !state.backgroundColor;
+  $('#background-color').value = state.backgroundColor ?? (mode === 'dark' ? '#303338' : '#e0e2e5');
+  $('#background-hex').value = $('#background-color').value;
+  $('#background-hex').setCustomValidity('');
 }
 darkMode.addEventListener('change', applyTheme);
 
@@ -689,6 +696,23 @@ $('.folder-content').addEventListener('contextmenu', event => {
 });
 $('#settings-button').addEventListener('click', () => { if (state) $('#settings-dialog').showModal(); });
 document.querySelectorAll('[data-theme]').forEach(node => node.addEventListener('click', () => command('SET_THEME', { theme: node.dataset.theme })));
+async function setBackgroundColor(color) {
+  const controls = ['#custom-background', '#background-color', '#background-hex', '#reset-background'].map($);
+  controls.forEach(node => { node.disabled = true; });
+  const ok = await command('SET_BACKGROUND_COLOR', { color });
+  controls.forEach(node => { node.disabled = false; });
+  if (!ok) applyTheme();
+}
+$('#custom-background').addEventListener('change', event => setBackgroundColor(event.currentTarget.checked ? $('#background-color').value : null));
+$('#background-color').addEventListener('change', event => setBackgroundColor(event.currentTarget.value));
+$('#background-hex').addEventListener('input', event => event.currentTarget.setCustomValidity(''));
+$('#background-hex').addEventListener('change', event => {
+  const input = event.currentTarget;
+  const value = input.value.trim();
+  input.setCustomValidity(/^#[0-9a-f]{6}$/i.test(value) ? '' : 'Enter a six-digit hex color, such as #e0e2e5.');
+  if (input.reportValidity()) setBackgroundColor(value);
+});
+$('#reset-background').addEventListener('click', () => setBackgroundColor(null));
 $('#show-search-bar').addEventListener('change', async event => {
   const toggle = event.currentTarget;
   toggle.disabled = true;

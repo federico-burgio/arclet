@@ -22,6 +22,7 @@ export function defaultData() {
     pins: [],
     folders: [],
     theme: 'system',
+    backgroundColor: null,
     showSearchBar: true,
     showFavoriteLabels: true
   };

@@ -16,6 +16,7 @@ export function createController(api, notify = () => {}) {
       api.storage.local.get('data'), api.storage.local.get('workspace'), api.storage.session.get('live')
     ]);
     const data = local.data ?? defaultData();
+    data.backgroundColor ??= null;
     data.showSearchBar ??= true;
     data.showFavoriteLabels ??= true;
     data.folders ??= [];
@@ -278,6 +279,12 @@ export function createController(api, notify = () => {}) {
       case 'SET_THEME':
         if (!['system', 'light', 'dark'].includes(payload.theme)) throw new Error('Choose a valid theme.');
         data.theme = payload.theme;
+        break;
+      case 'SET_BACKGROUND_COLOR':
+        if (payload.color !== null && (typeof payload.color !== 'string' || !/^#[0-9a-f]{6}$/i.test(payload.color))) {
+          throw new Error('Choose a valid background color, or use the theme default.');
+        }
+        data.backgroundColor = payload.color?.toLowerCase() ?? null;
         break;
       case 'SET_SEARCH_VISIBILITY':
         if (typeof payload.visible !== 'boolean') throw new Error('Choose whether to show the search bar.');

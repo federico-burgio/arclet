@@ -98,6 +98,36 @@ test('favorite labels default on for older settings and stay hidden after restar
   await assert.rejects(browser.run('SET_FAVORITE_LABELS', { visible: 'false' }), /whether to show/);
 });
 
+test('optional background color upgrades older settings, persists globally, and resets to the current theme', async () => {
+  const browser = fakeBrowser([tab(1, 'https://a.test/')]);
+  delete browser.local.data.backgroundColor;
+  assert.equal((await browser.run()).backgroundColor, null);
+  await browser.run('SET_BACKGROUND_COLOR', { color: '#A1B2C3' });
+  assert.equal((await browser.run('GET_STATE', {}, 2)).backgroundColor, '#a1b2c3');
+  await browser.run('SELECT_SPACE', { id: 'work' });
+  assert.equal((await browser.run('SET_THEME', { theme: 'dark' })).backgroundColor, '#a1b2c3');
+  browser.restart([tab(11, 'https://a.test/')]);
+  let state = await browser.run();
+  assert.equal(state.backgroundColor, '#a1b2c3');
+  assert.equal(state.theme, 'dark');
+  assert.equal(state.spaces[0].color, 'slate');
+  state = await browser.run('SET_BACKGROUND_COLOR', { color: null });
+  assert.equal(state.backgroundColor, null);
+  assert.equal(state.theme, 'dark');
+  assert.equal((await browser.run('SET_THEME', { theme: 'system' })).backgroundColor, null);
+  browser.suspend();
+  assert.equal((await browser.run()).backgroundColor, null);
+});
+
+test('invalid background colors leave the saved preference untouched', async () => {
+  const browser = fakeBrowser();
+  await browser.run('SET_BACKGROUND_COLOR', { color: '#123456' });
+  for (const color of [undefined, '', '#fff', '#12345g', 'red', 'url(https://example.com)', 123456, {}]) {
+    await assert.rejects(browser.run('SET_BACKGROUND_COLOR', { color }), /valid background color/);
+    assert.equal((await browser.run()).backgroundColor, '#123456');
+  }
+});
+
 test('a closed pinned page can become a favorite without opening a tab', async () => {
   const browser = fakeBrowser([tab(1, 'https://a.test/', 0, 1, { title: 'Reading notes' })]);
   const pin = (await browser.run('SAVE_PAGE', { kind: 'pin', tabId: 1 })).pins[0];

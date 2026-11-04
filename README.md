@@ -15,7 +15,7 @@ The default shortcut is **⌘ Shift E** on macOS or **Ctrl Shift E** elsewhere. 
 ## What works
 
 - **Live vertical tabs** for the current Chrome window. Switch, close, mute, and restore the last closed tab. Right-click an open tab for **Close all tabs** or **Close all tabs below**. These actions close only the visible Open tabs list in that space and window; saved pins/favorites and other spaces stay open. “Below” follows the current displayed order and keeps the clicked tab open. New tab and the empty content area also offer **Close all tabs**. Recently closed tabs remain restorable.
-- **Spaces** with names, icons, and six color palettes. New spaces use Slate gray by default. The selected footer tab shows its name and connects to a subtly colored folder containing its tabs. The surrounding background stays gray. The selector sits at the footer’s left edge. Add a space with its plus button; right-click a space to edit it.
+- **Spaces** with names, icons, and six color palettes. New spaces use Slate gray by default. The selected footer tab shows its name and connects to a subtly colored folder containing its tabs. The surrounding background uses the theme’s gray unless you choose a custom background color. The selector sits at the footer’s left edge. Add a space with its plus button; right-click a space to edit it.
 - **Drag and drop** to reorder tabs, or drop a tab onto a space icon to move it. A tab’s right-click menu also provides a keyboard-accessible way to move it (Shift F10).
 - **Favorites** shared by all spaces. Right-click an open tab or pinned page and choose **Add to favorites**. A pinned page can be saved as a favorite even when its browser tab is closed. Matching live tabs are hidden from the Open tabs list in every space, while staying open in Chrome and searchable. Right-click a favorite and choose **Remove favorite** to remove it; its live tabs reappear unless they are also pinned in that space. Drag favorite tiles to rearrange them, including across wrapped rows; insertion markers show the destination and Escape cancels. Their global order survives restarts. Use Alt+← / Alt+→ or the context menu’s Move left / Move right actions for keyboard ordering. Empty favorites sections are hidden.
 - **Pinned pages** per space. Right-click an open tab and choose **Pin to this space**. These are durable shortcuts: closing the live tab keeps the saved page. Clicking a saved page focuses an existing matching tab in the space or opens it again. Pages pinned in a space are hidden from that space’s Open tabs list; their underlying Chrome tabs stay open and remain searchable. Unpinning a page makes its live tabs reappear. Right-click a pinned page to favorite, mute, close its live tab, or unpin it.
@@ -23,7 +23,7 @@ The default shortcut is **⌘ Shift E** on macOS or **Ctrl Shift E** elsewhere. 
 - **Custom icons and colors** for spaces, pinned folders, pinned pages, and favorites. Choose from 2,019 searchable [Lucide](https://lucide.dev/) outline icons, with preset colors, a custom color picker, or an automatic theme color. Right-click saved pages → **Customize icon**; **Use site icon** restores the favicon. Edit a space or folder to choose its icon separately from the space’s background palette. The entire library works offline.
 - **A simpler tab list:** no Open tabs heading or count bar. Right-click **New tab** or the selected space to **Restore last closed tab**.
 - **Search and navigation** with **⌘ K / Ctrl K**, while the sidebar has keyboard focus. Search tabs across spaces, switch with arrow keys and Enter, or click the bottom result to open a URL or Google search. Bare domains and localhost addresses work.
-- **Light, dark, and system appearance** from the settings button.
+- **Light, dark, and system appearance** from the settings button. Optionally enable **Settings → Background → Custom background color** and choose a color or enter a six-digit hex value. This main background override persists across windows and restarts, independently of space colors. Disable it or choose **Use theme default** to restore the current theme’s background.
 - **Native OS typography:** interface text, form controls, and keyboard shortcuts use the operating system’s UI font.
 - **Optional search bar:** open Settings at the footer’s right edge and toggle **Show search bar**. This preference survives restarts and applies to every window. New tab and the search shortcut remain available when the bar is hidden.
 - **Optional favorite labels:** use **Settings → Show favorite labels** to show site names or use icons alone. The preference survives restarts; titles remain available in tooltips and accessible names.
@@ -59,7 +59,7 @@ Open `http://127.0.0.1:4173/sidepanel.html?demo=1`. This explicit preview uses s
 ```sh
 npm test          # State, concurrency, navigation, and tab-action regression tests
 npm run check    # Manifest, resources, CSP, IDs, and JS syntax
-npm run package  # Produces dist/arclet/ and dist/arclet-0.5.0.zip
+npm run package  # Produces dist/arclet/ and dist/arclet-0.6.0.zip
 ```
 
 After changing source files, click Reload on the extension’s card at `chrome://extensions`, then close and reopen the panel. There are no remote scripts, fonts, or build tools.
