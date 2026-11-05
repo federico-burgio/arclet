@@ -51,7 +51,7 @@ The public **Arclet format v1** covers spaces, favorites, pinned pages, folders,
 
 Export excludes live browser tabs, history, cookies, passwords, and tab-recovery state. All import/export processing happens locally.
 
-Long HTTP/HTTPS URLs are supported within the overall 5 MiB backup limit. Blank page titles use the hostname. Saved layout changes are checked against the backup’s size and record limits before saving so they remain exportable. Older duplicate pins and blank titles are repaired when loaded or exported.
+Long HTTP/HTTPS URLs are supported within the overall 5 MiB backup limit. Blank page titles use the hostname. Saved layout changes are checked against the backup’s size and record limits before saving so they remain exportable. A layout saved by an older version that already exceeds a limit can still be edited, reordered, and shrunk; only changes that add items or address length are refused until it is back under the limit. Import previews report a merged result that would exceed a limit before you confirm. Older duplicate pins and blank titles are repaired when loaded or exported.
 
 ## Theme palette
 

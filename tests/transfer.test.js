@@ -224,3 +224,39 @@ test('saving a layout beyond the backup size limit leaves durable data intact', 
   await assert.rejects(browser.run('SAVE_PAGE', { tabId: 1, kind: 'pin' }), /5 MiB/);
   assert.deepEqual(browser.local.data, before);
 });
+
+// Layouts saved before the backup limits existed can already exceed them.
+const legacyLayout = pins => ({ ...defaultData(), pins: pins.map((url, order) => ({ id: `p${order}`, spaceId: 'personal', url, title: `Page ${order}`, order })) });
+
+test('layouts already over the item limit can still be edited and shrunk, but not grown', async () => {
+  const browser = fakeBrowser([tab(1, 'https://new.test/')]);
+  browser.local.data = legacyLayout(Array.from({ length: 10050 }, (_, i) => `https://site${i}.test/`));
+  assert.equal((await browser.run('REMOVE_PAGE', { kind: 'pin', id: 'p0' })).pins.length, 10049);
+  assert.equal((await browser.run('SET_THEME', { theme: 'dark' })).theme, 'dark');
+  assert.equal((await browser.run('SAVE_SPACE', { id: 'personal', name: 'Renamed', color: 'sage', icon: 'sun' })).spaces[0].name, 'Renamed');
+  const before = structuredClone(browser.local.data);
+  await assert.rejects(browser.run('SAVE_PAGE', { tabId: 1, kind: 'pin' }), /keeps up to 10,000 .* Remove some before adding more/);
+  await assert.rejects(browser.run('SAVE_SPACE', { name: 'Another', color: 'slate', icon: 'sun' }), /10,000/);
+  assert.deepEqual(browser.local.data, before);
+});
+
+test('layouts already over the size limit can remove pages but not add addresses', async () => {
+  const huge = i => `https://huge${i}.test/?q=${'a'.repeat(2_000_000)}`;
+  const browser = fakeBrowser([tab(1, 'https://new.test/')]);
+  browser.local.data = legacyLayout([huge(1), huge(2), huge(3)]);
+  await assert.rejects(browser.run('SAVE_PAGE', { tabId: 1, kind: 'favorite' }), /total up to 5 MiB/);
+  assert.equal((await browser.run('SET_FAVORITE_LABELS', { visible: false })).showFavoriteLabels, false);
+  assert.equal((await browser.run('REMOVE_PAGE', { kind: 'pin', id: 'p0' })).pins.length, 2);
+  // Back under the limit, the layout is exportable again and ordinary saves work.
+  assert.ok((await browser.run('EXPORT_DATA')).exportDocument);
+  assert.equal((await browser.run('SAVE_PAGE', { tabId: 1, kind: 'favorite' })).favorites.length, 1);
+});
+
+test('import preview reports a merged result over the item limit before confirming', async () => {
+  const browser = fakeBrowser([tab(1, 'https://a.test/')]);
+  browser.local.data = legacyLayout(Array.from({ length: 9990 }, (_, i) => `https://site${i}.test/`));
+  const document = file({ favorites: Array.from({ length: 20 }, (_, i) => ({ url: `https://incoming${i}.test/` })) });
+  await assert.rejects(browser.run('PREVIEW_IMPORT', { document }), /This import would exceed Arclet’s limit of 10,000/);
+  const small = file({ favorites: [{ url: 'https://incoming.test/' }] });
+  assert.equal((await browser.run('PREVIEW_IMPORT', { document: small })).importPreview.favorites, 1);
+});

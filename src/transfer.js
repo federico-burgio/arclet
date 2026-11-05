@@ -8,6 +8,15 @@ const MAX_RECORDS = 10000;
 const SETTINGS = ['theme', 'backgroundColor', 'showSearchBar', 'pageControlsPosition', 'showFavoriteLabels', 'favoritesPerRow', 'fontScale'];
 const PAGE_FIELDS = ['url', 'title', 'icon', 'iconColor'];
 const fail = (path, message) => { throw new Error(`${path}: ${message}`); };
+// Tag size/count failures so callers can tell a full layout from a malformed one.
+const limitError = (message, limit) => Object.assign(new Error(message), { limit });
+
+// What a change adds to a backup: items, plus address bytes (the only unbounded field).
+export function backupSize(data) {
+  const pages = [...data.favorites, ...data.pins];
+  return { records: data.spaces.length + data.folders.length + pages.length,
+    urlBytes: pages.reduce((total, page) => total + String(page.url ?? '').length, 0) };
+}
 function object(value, path, fields) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail(path, 'expected an object.');
   for (const key of Object.keys(value)) if (!fields.includes(key)) fail(path, `unknown field “${key}”.`);
@@ -43,7 +52,7 @@ export function normalizeImport(document) {
   let bytes;
   try { bytes = new TextEncoder().encode(JSON.stringify(document)).length; }
   catch { throw new Error('Choose a valid JSON document.'); }
-  if (bytes > MAX_TRANSFER_BYTES) throw new Error('Import files must be 5 MiB or smaller.');
+  if (bytes > MAX_TRANSFER_BYTES) throw limitError('Import files must be 5 MiB or smaller.', 'bytes');
   object(document, 'File', ['format', 'version', 'exportedAt', 'spaces', 'favorites', 'settings']);
   if (document.format !== TRANSFER_FORMAT) fail('File', 'expected format “arclet”. See the format guide.');
   if (document.version !== TRANSFER_VERSION) fail('File', 'only Arclet format version 1 is supported.');
@@ -52,7 +61,7 @@ export function normalizeImport(document) {
     fail('exportedAt', 'expected an ISO date string.');
   }
   let records = 0;
-  const count = () => { if (++records > MAX_RECORDS) throw new Error('Import files may contain at most 10,000 spaces, folders, and pages combined.'); };
+  const count = () => { if (++records > MAX_RECORDS) throw limitError('Import files may contain at most 10,000 spaces, folders, and pages combined.', 'records'); };
   function page(value, path, pin = false) {
     count();
     object(value, path, pin ? [...PAGE_FIELDS, 'type'] : PAGE_FIELDS);

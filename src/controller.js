@@ -2,7 +2,7 @@ import { savedHome, observeSavedNavigation } from './saved-home.js';
 import { COLORS, MAX_FAVORITES_PER_ROW, FONT_SCALES, destination, safeSavedUrl, iconAppearance, openTabsForSpace } from './model.js';
 import { preparePersistence, reconcileWorkspace, forgetTab, boundWorkspace } from './persistence.js';
 import { normalizePinnedOrder, movePinnedItem, pinnedEntries, removePinnedFolder } from './pinned-order.js';
-import { exportData, importToken, planImport } from './transfer.js';
+import { backupSize, exportData, importToken, planImport } from './transfer.js';
 import { savedPage, ownedTab, adoptableTab, bindSavedTab, clearSavedOwnership } from './saved-tabs.js';
 import { boundedApi } from './api-timeout.js';
 import { normalizeStoredData } from './stored-data.js';
@@ -53,6 +53,24 @@ export function createController(api, notify = () => {}, { apiTimeoutMs = 10000 
     state.tabs = await api.tabs.query({});
     reconcileWorkspace(state, state.tabs);
     ownedTabs = new Set(Object.keys(state.live.pageOwners).map(Number));
+  }
+  // Every newly saved layout must also be a valid, restorable backup. Layouts
+  // saved before these limits existed may already exceed them; never lock those:
+  // allow any change that adds no items or address bytes, including removals.
+  function assertBackup(beforeJson, after, importing = false) {
+    let error;
+    try { exportData(after); return; } catch (caught) { error = caught; }
+    const before = JSON.parse(beforeJson);
+    const exportable = (() => { try { exportData(before); return true; } catch { return false; } })();
+    const [old, next] = [backupSize(before), backupSize(after)];
+    if (!exportable && next.records <= old.records && next.urlBytes <= old.urlBytes) return;
+    if (error.limit === 'records') throw new Error(importing
+      ? 'This import would exceed Arclet’s limit of 10,000 spaces, folders, and saved pages. Remove some items or import a smaller file.'
+      : 'Arclet keeps up to 10,000 spaces, folders, and saved pages so they can always be backed up. Remove some before adding more.');
+    if (error.limit === 'bytes') throw new Error(importing
+      ? 'This import would make your saved pages larger than the 5 MiB backup limit. Remove some pages or import a smaller file.'
+      : 'Saved pages can total up to 5 MiB so they can always be backed up. Remove pages with very long addresses before adding more.');
+    throw error;
   }
   const requireSpace = (data, id) => {
     const space = data.spaces.find(space => space.id === id);
@@ -123,6 +141,8 @@ export function createController(api, notify = () => {}, { apiTimeoutMs = 10000 
         return { ...getState(windowId, state), exportDocument: exportData(data) };
       case 'PREVIEW_IMPORT': {
         const plan = planImport(data, payload.document);
+        // Report a merged result that would exceed the limits before the user confirms.
+        assertBackup(JSON.stringify(data), plan.data, true);
         return { ...getState(windowId, state), importPreview: { ...plan.summary, token: await importToken(data) } };
       }
       case 'IMPORT_DATA': {
@@ -431,8 +451,7 @@ export function createController(api, notify = () => {}, { apiTimeoutMs = 10000 
         break;
       default: throw new Error('Unknown sidebar command.');
     }
-    // Every newly saved layout must also be a valid, restorable backup.
-    if (JSON.stringify(state.data) !== originalData) exportData(state.data);
+    if (JSON.stringify(state.data) !== originalData) assertBackup(originalData, state.data, type === 'IMPORT_DATA');
     await synchronize(state);
     await save(state);
     notify();
