@@ -21,8 +21,11 @@ export function createChromeSync(api, { load, save, synchronize, notify }) {
     state.syncBackup = { savedAt: new Date().toISOString(), data: structuredClone(state.data) };
     state.backupChanged = true;
   }
-  async function adopt(state, cloud) {
-    preserve(state);
+  // Only an explicit, reviewed choice replaces the recovery copy. Routine updates
+  // from other devices must not overwrite it, or the configuration a user chose
+  // to replace would be lost after the next change anywhere else.
+  async function adopt(state, cloud, { reviewed = false } = {}) {
+    if (reviewed) preserve(state);
     state.data = cloud.data;
     state.fromSync = true;
     Object.assign(state.syncPrefs, { revision: cloud.head.revision, content: cloud.head.hash,
@@ -33,7 +36,7 @@ export function createChromeSync(api, { load, save, synchronize, notify }) {
     if (payload.token !== review.token) throw new Error('Your local or Chrome configuration changed. Review Sync again before enabling.');
     if (!review.fits) throw new Error(review.message);
     if (!['local', 'remote'].includes(payload.source) || (payload.source === 'remote' && (!review.cloud || review.cloud.incomplete))) throw new Error('Choose which configuration to use.');
-    if (payload.source === 'remote') await adopt(state, review.cloud);
+    if (payload.source === 'remote') await adopt(state, review.cloud, { reviewed: true });
     else if (review.cloud?.data) {
       state.syncBackup = { savedAt: new Date().toISOString(), data: structuredClone(review.cloud.data) };
       state.backupChanged = true;

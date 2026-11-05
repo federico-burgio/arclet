@@ -9,6 +9,7 @@ const PART_LIMIT = 7000;
 const PART_SLOTS = 20;
 const PLACEHOLDER = '00000000-0000-0000-0000-000000000000';
 const SETTINGS = ['theme', 'backgroundColor', 'showSearchBar', 'pageControlsPosition', 'showFavoriteLabels', 'favoritesPerRow', 'fontScale'];
+const PIN_FIELDS = ['id', 'spaceId', 'folderId', 'title', 'url', 'icon', 'iconColor', 'order'];
 const pick = (value, keys) => Object.fromEntries(keys.map(key => [key, value[key] ?? null]));
 const bytes = text => new TextEncoder().encode(text).length;
 export const storageBytes = entries => Object.entries(entries).reduce((sum, [key, value]) => sum + bytes(key) + bytes(JSON.stringify(value)), 0);
@@ -28,7 +29,7 @@ export function syncData(data) {
     spaces: data.spaces.map(item => pick(item, ['id', 'name', 'color', 'backgroundColor', 'icon', 'iconColor'])),
     folders: data.folders.map(item => pick(item, ['id', 'spaceId', 'name', 'icon', 'iconColor', 'collapsed', 'order'])),
     favorites: data.favorites.map(item => pick(item, ['id', 'title', 'url', 'icon', 'iconColor'])),
-    pins: data.pins.map(item => pick(item, ['id', 'spaceId', 'folderId', 'title', 'url', 'icon', 'iconColor', 'order']))
+    pins: data.pins.map(item => pick(item, PIN_FIELDS))
   };
 }
 
@@ -88,29 +89,44 @@ export async function readSync(entries) {
   return { head, data, used };
 }
 
+// Exact chunked size near the limit. Far beyond it the exact figure cannot change
+// the answer, and chunking a multi-megabyte layout character by character is slow,
+// so use the escaped document size: a lower bound that omits only per-key overhead.
+function measure(data, document = JSON.stringify(syncData(data))) {
+  const lowerBound = bytes(JSON.stringify(document));
+  return lowerBound > SYNC_LIMIT * 2 ? lowerBound : storageBytes(packSync(data));
+}
+
 let cachedAssessment;
 export function assessSync(data) {
-  const document = canonical(syncData(data));
+  // Runs for every sidebar state read, so keep the cache key cheap: no key sorting.
+  const document = JSON.stringify(syncData(data));
   if (cachedAssessment?.document === document) return cachedAssessment.result;
-  const used = storageBytes(packSync(data));
+  const used = measure(data, document);
   const result = { used, limit: SYNC_LIMIT, ratio: used / SYNC_LIMIT, fits: used <= SYNC_LIMIT,
     removePins: 0, pinsAloneEnough: true, counts: { spaces: data.spaces.length, folders: data.folders.length,
       pins: data.pins.length, favorites: data.favorites.length } };
-  if (!result.fits) {
-    const sorted = [...data.pins].sort((a, b) => JSON.stringify(b).length - JSON.stringify(a).length);
-    const sizeAfter = count => {
-      const removed = new Set(sorted.slice(0, count).map(pin => pin.id));
-      return storageBytes(packSync({ ...data, pins: data.pins.filter(pin => !removed.has(pin.id)) }));
-    };
-    if (sizeAfter(sorted.length) > SYNC_LIMIT) result.pinsAloneEnough = false;
-    else {
-      let low = 0, high = sorted.length;
-      while (low < high) { const mid = Math.floor((low + high) / 2); if (sizeAfter(mid) <= SYNC_LIMIT) high = mid; else low = mid + 1; }
-      result.removePins = low;
-    }
-  }
+  if (!result.fits) Object.assign(result, pinAdvice(data, used));
   cachedAssessment = { document, result };
   return result;
+}
+
+// How many of the longest pins to remove. Each pin's stored cost is its JSON as
+// escaped inside a part string, plus a separator. Removing pins never adds part
+// overhead, so the running total is an upper-bound estimate; one re-pack confirms
+// it (re-packing for every step of a search is slow on large layouts).
+function pinAdvice(data, used) {
+  const sizeAfter = removed => measure({ ...data, pins: data.pins.filter(pin => !removed.has(pin.id)) });
+  if (sizeAfter(new Set(data.pins.map(pin => pin.id))) > SYNC_LIMIT) return { pinsAloneEnough: false };
+  const sorted = data.pins.map(pin => ({ id: pin.id, cost: bytes(JSON.stringify(JSON.stringify(pick(pin, PIN_FIELDS)))) - 1 }))
+    .sort((a, b) => b.cost - a.cost);
+  let count = 0;
+  for (let freed = 0; count < sorted.length && used - freed > SYNC_LIMIT; count++) freed += sorted[count].cost;
+  // Confirm, widening the step if the estimate fell short.
+  for (let step = 1; count < sorted.length && sizeAfter(new Set(sorted.slice(0, count).map(pin => pin.id))) > SYNC_LIMIT; step *= 2) {
+    count = Math.min(sorted.length, count + step);
+  }
+  return { removePins: count };
 }
 
 export function capacityMessage(assessment) {
