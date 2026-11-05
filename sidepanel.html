@@ -36,21 +36,23 @@
         <div class="folder-content">
           <div class="content-scroll">
             <section class="pins-section" aria-label="Pinned pages">
+              <div id="pins" class="tab-list"></div>
+            </section>
+
+            <div class="section-controls">
+              <div class="tabs-toolbar" role="group" aria-label="Open tab controls">
+                <button id="new-tab" class="new-tab" title="Open a new tab"><span data-icon="plus"></span><span class="new-tab-label">New tab</span></button>
+                <button id="clear-tabs" class="icon-button small" type="button" title="Close all tabs except pinned tabs and favorites in this space" aria-label="Close regular tabs" data-icon="broom" disabled></button>
+              </div>
+              <svg class="section-divider" viewBox="0 0 28 44" preserveAspectRatio="none" aria-hidden="true"><path d="M0 .5 C22 .5 6 43.5 28 43.5"/></svg>
               <div class="pins-toolbar" role="group" aria-label="Pinned folder controls">
                 <button id="new-folder" class="icon-button small" type="button" title="New folder" aria-label="New folder" data-icon="folder-plus"></button>
                 <button id="collapse-folders" class="icon-button small" type="button" title="Collapse all folders" aria-label="Collapse all folders" data-icon="fold-vertical" disabled></button>
                 <button id="expand-folders" class="icon-button small" type="button" title="Expand all folders" aria-label="Expand all folders" data-icon="unfold-vertical" disabled></button>
               </div>
-              <div id="pins" class="tab-list"></div>
-            </section>
-
-            <div id="pins-divider" class="divider"></div>
+            </div>
 
             <section class="tabs-section" aria-label="Open tabs">
-              <div class="tabs-toolbar">
-                <button id="new-tab" class="new-tab" title="Open a new tab"><span data-icon="plus"></span>New tab</button>
-                <button id="clear-tabs" class="icon-button small" type="button" title="Close all tabs except pinned tabs and favorites in this space" aria-label="Close regular tabs" data-icon="broom" disabled></button>
-              </div>
               <div id="tabs" class="tab-list"></div>
               <div id="empty-tabs" class="empty-tabs" hidden><span data-icon="sprout"></span><p>A little room to think.</p><span>Open a tab and make this space yours.</span></div>
             </section>

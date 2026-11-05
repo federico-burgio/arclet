@@ -55,7 +55,6 @@
   .space-folder { display: flex; flex-direction: column; flex: 1; min-height: 0; }
   .folder-content { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--folder-background); border-radius: 12px 12px 0 0; }
   .content-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent; padding: 10px 8px 14px; }
-  .divider { height: 1px; background: var(--line); margin: 19px 6px 10px; }
   footer { flex-shrink: 0; }
   .footer-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 5px; min-height: 42px; }
   .spaces-bar { grid-column: 1; display: flex; align-items: center; justify-content: flex-start; min-width: 0; gap: 5px; }
@@ -130,7 +129,7 @@
   .folder-heading[aria-expanded="false"] .folder-chevron { transform: rotate(-90deg); }
   .folder-children { margin: 2px 0 6px 16px; padding-left: 6px; }
   .folder-empty { padding: 8px 10px 12px; font-size: 0.769231rem; line-height: 1.6; color: var(--faint); }
-  .tabs-toolbar { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .tabs-toolbar { display: flex; align-items: center; gap: 6px; min-width: 0; border-top: 1px solid var(--line); padding-right: 4px; }
   .new-tab { display: flex; align-items: center; gap: 10px; padding: 10px; flex: 1; min-width: 0; text-align: left; border-radius: 8px; color: var(--muted); font-size: 0.846154rem; }
   .new-tab svg { width: 16px; height: 16px; color: var(--icon); }
   .new-tab:hover { background: var(--hover); color: var(--text); }
@@ -295,4 +294,13 @@
   .search-toolbar[data-mode="controls"] .icon-button { width: 24px; height: 26px; padding: 4px; }
 }
 
-.pins-toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 3px; padding: 0 4px 6px; }
+.section-controls { display: grid; grid-template-columns: minmax(0, 1fr) 28px auto; margin: 18px 6px 10px; }
+.section-controls > [role="group"] { height: 44px; box-sizing: border-box; }
+.section-controls .icon-button { flex-shrink: 0; }
+.section-controls .tabs-toolbar { border-bottom: 1px solid transparent; }
+.section-controls .pins-toolbar { border-top: 1px solid transparent; }
+.section-divider { display: block; width: 28px; height: 44px; fill: none; stroke: var(--line); stroke-width: 1; }
+.pins-toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 3px; padding: 0 4px; border-bottom: 1px solid var(--line); }
+.new-tab-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.context-menu .submenu-arrow { margin-left: auto; width: 12px; height: 12px; }
+@media (max-width: 300px) { .section-controls { margin-inline: 0; grid-template-columns: minmax(0, 1fr) 20px auto; } .section-divider { width: 20px; } .section-controls .new-tab { padding-inline: 4px; gap: 6px; } }

@@ -42,6 +42,8 @@ Controls-only navigation hides the URL launcher, keeps an empty center, and puts
 
 ## Other tab operations
 
+The controls between pinned and regular tabs share one row: New tab and Clean on the left, folder creation/collapse/expand on the right. An S-shaped divider passes above the tab controls and below the folder controls to associate each group with its section. Context menus separate editing, organization, session actions, and removal/bulk-close actions. Move to space opens a separate destination menu with Back navigation, rather than listing every space in the main menu.
+
 Associated instances stay out of the regular tab section regardless of their current address. Independent duplicates remain visible. The broom, regular-tab bulk close, and middle-click protections use ownership, including for instances away from home. Native Chrome-pinned tab protection remains unchanged.
 
 Search includes current pages and identifies their saved owner. Activating a search result resumes that instance. Loading and audio status are shown on the saved item; mute/close actions target its actual running instance.

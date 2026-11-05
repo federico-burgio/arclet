@@ -44,6 +44,7 @@ let navigatingPage = false;
 let copyingUrl = false;
 let clearingTabs = false;
 let pendingClose;
+let menuBack;
 let draggingId = null;
 let draggingPinned = false;
 let draggingFavorites = false;
@@ -291,7 +292,7 @@ for (const definition of CONTROL_FAVORITES) {
     const page = controlFavorite(state, definition.kind);
     const session = page && pageSession(page, state.tabs);
     openMenu(x, y, [
-      ...(page ? [...savedEditActions(page, definition.kind), ...savedSessionActions(page, session.tab, session.status)] : []),
+      ...(page ? [...savedEditActions(page, definition.kind), { separator: true }, ...savedSessionActions(page, session.tab, session.status), { separator: true }] : []),
       { label: `Set ${definition.title} URL`, icon: definition.icon, action: async () => {
         try { await platform.openOptions('sidebar'); } catch (error) { toast(error.message, true); }
       } }
@@ -380,7 +381,9 @@ function renderFavorites() {
     if (state.showFavoriteLabels) node.append(make('span', 'favorite-label', page.title));
     bindContextMenu(node, (x, y) => openMenu(x, y, [
       ...savedEditActions(page, 'favorite'),
+      { separator: true },
       ...savedSessionActions(page, liveTab, status),
+      { separator: true },
       { label: 'Remove favorite', icon: 'close', action: () => command('REMOVE_PAGE', { kind: 'favorite', id: page.id }) }
     ]));
     wrapper.append(node);
@@ -460,8 +463,10 @@ function pageRow(page) {
   if (liveTab) row.append(button(`Close ${page.title}`, 'close', 'tab-action', () => command('CLOSE_SAVED_PAGE', { id: page.id })));
   bindContextMenu(row, (x, y) => openMenu(x, y, [
     ...savedEditActions(page, 'pin'),
+    { separator: true },
     { label: 'Move to folder', icon: 'folder-input', action: () => openPinFolders(page, x, y) },
     favoriteAction(page, { pageId: page.id }),
+    { separator: true },
     ...savedSessionActions(page, liveTab, status),
     { separator: true },
     { label: 'Unpin page', icon: 'pin', action: () => command('REMOVE_PAGE', { kind: 'pin', id: page.id }) }
@@ -533,7 +538,6 @@ function renderPins() {
   const outside = make('div', 'pin-root-drop', 'Drop here outside folders');
   outside.dataset.pinRootDrop = '';
   list.append(outside);
-  $('#pins-divider').hidden = entries.length === 0;
 }
 
 $('#new-folder').addEventListener('click', () => openFolderEditor());
@@ -566,6 +570,7 @@ function openPinFolders(page, x, y) {
     ...state.folders.filter(folder => folder.spaceId === page.spaceId && folder.id !== page.folderId).map(folder => ({
       label: folder.name, icon: folder.icon, iconColor: folder.iconColor, action: () => command('MOVE_PIN', { id: page.id, folderId: folder.id })
     })),
+    { separator: true },
     { label: 'New folder with this page', icon: 'folder-plus', action: () => openFolderEditor(null, page.spaceId, page.id) }
   ]);
 }
@@ -604,13 +609,17 @@ function renderTabs() {
     const showTabMenu = (x, y) => {
       openMenu(x, y, [
         { label: 'Duplicate', icon: 'copy', action: () => command('DUPLICATE_TAB', { id: tab.id }) },
+        { separator: true },
         { label: 'Pin to this space', icon: 'pin', action: () => command('SAVE_PAGE', { kind: 'pin', tabId: tab.id }, 'Pinned to this space.') },
         favoriteAction(tab, { tabId: tab.id }),
-        { label: tab.mutedInfo?.muted ? 'Unmute tab' : 'Mute tab', icon: tab.mutedInfo?.muted ? 'volume' : 'muted', action: () => command('MUTE_TAB', { id: tab.id }) },
-        { heading: 'MOVE TO SPACE' },
-        ...state.spaces.filter(space => space.id !== tab.spaceId).map(space => ({ label: space.name, icon: space.icon, iconColor: space.iconColor, action: () => command('MOVE_TAB', { id: tab.id, spaceId: space.id }, `Moved to ${space.name}.`) })),
+        { label: 'Move to space', icon: 'folder-input', submenu: true, disabled: !state.spaces.some(space => space.id !== tab.spaceId), action: () => openMenu(x, y,
+          state.spaces.filter(space => space.id !== tab.spaceId).map(space => ({ label: space.name, icon: space.icon, iconColor: space.iconColor,
+            action: () => command('MOVE_TAB', { id: tab.id, spaceId: space.id }, `Moved to ${space.name}.`) })),
+          { label: 'Move to space', back: () => showTabMenu(x, y) }) },
         { separator: true },
+        { label: tab.mutedInfo?.muted ? 'Unmute tab' : 'Mute tab', icon: tab.mutedInfo?.muted ? 'volume' : 'muted', action: () => command('MUTE_TAB', { id: tab.id }) },
         { label: 'Close tab', icon: 'close', action: () => command('CLOSE_TAB', { id: tab.id }) },
+        { separator: true },
         { label: 'Close all tabs below', icon: 'list-end', disabled: tabs.at(-1)?.id === tab.id,
           action: () => confirmCloseTabs({ mode: 'below', id: tab.id, spaceId: tab.spaceId }) },
         { label: 'Close all tabs', icon: 'copy-x', action: () => confirmCloseTabs({ mode: 'all', spaceId: tab.spaceId }) }
@@ -900,18 +909,36 @@ $('#delete-space').addEventListener('click', async () => {
   if (await command('DELETE_SPACE', { id: editingSpace.id }, 'Space deleted. Your tabs and pinned pages were moved.')) $('#space-dialog').close();
 });
 
-function closeMenu() { $('#context-menu').hidden = true; }
-function openMenu(x, y, entries) {
+function closeMenu() { $('#context-menu').hidden = true; menuBack = null; }
+function openMenu(x, y, entries, { label = 'Actions', back = null } = {}) {
   const menu = $('#context-menu');
+  menuBack = back;
+  menu.setAttribute('aria-label', label);
   menu.replaceChildren();
-  entries.forEach(entry => {
+  const grouped = [];
+  if (back) grouped.push({ label: 'Back to tab actions', icon: 'arrow-left', action: back }, { separator: true });
+  for (const entry of entries) {
+    if (entry.separator && (!grouped.length || grouped.at(-1).separator)) continue;
+    grouped.push(entry);
+  }
+  if (grouped.at(-1)?.separator) grouped.pop();
+  grouped.forEach(entry => {
     if (entry.heading) { menu.append(make('div', 'menu-heading', entry.heading)); return; }
-    if (entry.separator) { menu.append(make('div', 'menu-separator')); return; }
+    if (entry.separator) { const divider = make('div', 'menu-separator'); divider.setAttribute('role', 'separator'); menu.append(divider); return; }
     const node = button(entry.label, entry.icon, '', () => { closeMenu(); entry.action(); });
     node.disabled = Boolean(entry.disabled);
     if (entry.iconColor) node.querySelector('svg')?.style.setProperty('color', entry.iconColor);
     node.setAttribute('role', 'menuitem');
     node.append(make('span', '', entry.label));
+    if (entry.submenu) {
+      node.setAttribute('aria-haspopup', 'menu');
+      const arrow = icon('chevron-right');
+      arrow.classList.add('submenu-arrow');
+      node.append(arrow);
+      node.addEventListener('keydown', event => {
+        if (event.key === 'ArrowRight') { event.preventDefault(); event.stopPropagation(); node.click(); }
+      });
+    }
     menu.append(node);
   });
   menu.hidden = false;
@@ -920,6 +947,9 @@ function openMenu(x, y, entries) {
   menu.querySelector('button:not(:disabled)')?.focus();
 }
 $('#context-menu').addEventListener('keydown', event => {
+  if (menuBack && ['ArrowLeft', 'Escape'].includes(event.key)) {
+    event.preventDefault(); event.stopPropagation(); menuBack(); return;
+  }
   const items = [...$('#context-menu').querySelectorAll('button:not(:disabled)')];
   const index = items.indexOf(document.activeElement);
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -938,9 +968,11 @@ document.addEventListener('keydown', event => {
 function openSpaceActions(space, x, y) {
   openMenu(x, y, [
     { label: `Edit ${space.name}`, icon: 'edit', action: () => openSpaceEditor(space) },
+    { separator: true },
     { label: 'New pinned folder', icon: 'folder-plus', action: () => openFolderEditor(null, space.id) },
     ...(space.id === state.spaceId ? [{ label: 'Pin current page', icon: 'pin', action: () => saveCurrent('pin') }] : []),
     ...(space.id === state.spaceId ? [{ label: 'Restore last closed tab', icon: 'history', action: () => command('RESTORE_TAB', {}, 'Tab restored.') }] : []),
+    { separator: true },
     { label: 'New space', icon: 'plus', action: () => openSpaceEditor() }
   ]);
 }
@@ -950,6 +982,7 @@ function openContentActions(x, y) {
   openMenu(x, y, [
     { label: 'New pinned folder', icon: 'folder-plus', action: () => openFolderEditor() },
     { label: 'Pin current page', icon: 'pin', action: () => saveCurrent('pin') },
+    { separator: true },
     { label: 'Restore last closed tab', icon: 'history', action: () => command('RESTORE_TAB', {}, 'Tab restored.') },
     { separator: true },
     { label: 'Close all tabs', icon: 'copy-x', disabled: !tabs.length,
