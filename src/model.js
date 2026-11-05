@@ -1,3 +1,4 @@
+import { CONTROL_FAVORITES } from './home-page.js';
 import { hasIcon } from './icons.js';
 
 export const COLORS = {
@@ -28,6 +29,8 @@ export function defaultData() {
     theme: 'system',
     backgroundColor: null,
     showSearchBar: true,
+    showUrlBar: true,
+    ...Object.fromEntries(CONTROL_FAVORITES.flatMap(item => [[item.urlKey, null], [item.titleKey, item.title]])),
     pageControlsPosition: 'left',
     showFavoriteLabels: true,
     favoritesPerRow: DEFAULT_FAVORITES_PER_ROW,

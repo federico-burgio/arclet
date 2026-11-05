@@ -20,6 +20,11 @@
         <button id="search-button" class="search-launcher" aria-label="Search tabs or enter a URL">
           <span data-icon="search"></span><span>Search or enter a URL</span><kbd id="search-shortcut">⌘ K</kbd>
         </button>
+        <button id="home-page" class="icon-button control-favorite" type="button" title="Home" aria-label="Home" data-icon="house" hidden></button>
+        <button id="email-page" class="icon-button control-favorite" type="button" title="Email" aria-label="Email" data-icon="mail" hidden></button>
+        <button id="calendar-page" class="icon-button control-favorite" type="button" title="Calendar" aria-label="Calendar" data-icon="calendar-days" hidden></button>
+        <span id="navigation-spacer" aria-hidden="true" hidden></span>
+        <span id="favorites-spacer" aria-hidden="true" hidden></span>
       </div>
 
       <section class="favorites-section" aria-label="Favorites">
@@ -31,6 +36,11 @@
         <div class="folder-content">
           <div class="content-scroll">
             <section class="pins-section" aria-label="Pinned pages">
+              <div class="pins-toolbar" role="group" aria-label="Pinned folder controls">
+                <button id="new-folder" class="icon-button small" type="button" title="New folder" aria-label="New folder" data-icon="folder-plus"></button>
+                <button id="collapse-folders" class="icon-button small" type="button" title="Collapse all folders" aria-label="Collapse all folders" data-icon="fold-vertical" disabled></button>
+                <button id="expand-folders" class="icon-button small" type="button" title="Expand all folders" aria-label="Expand all folders" data-icon="unfold-vertical" disabled></button>
+              </div>
               <div id="pins" class="tab-list"></div>
             </section>
 
@@ -84,6 +94,15 @@
       </form>
     </dialog>
 
+    <dialog id="edit-page-dialog" class="sheet" aria-labelledby="edit-page-title">
+      <form id="edit-page-form">
+        <div class="sheet-header"><h2 id="edit-page-title">Edit saved page</h2><button type="button" class="icon-button" data-close="edit-page-dialog" aria-label="Cancel edit" data-icon="close"></button></div>
+        <label for="saved-page-name">Name</label><input id="saved-page-name" class="text-input" type="text" maxlength="200" required>
+        <fieldset id="page-icon-settings"><legend>Icon &amp; color</legend><button type="button" id="page-appearance" class="appearance-button"></button></fieldset>
+        <p id="edit-page-error" class="fine-print danger" role="alert" hidden></p>
+        <div class="sheet-actions"><button type="button" class="text-button" data-close="edit-page-dialog">Cancel</button><button id="save-page" class="primary-button" type="submit">Save changes</button></div>
+      </form>
+    </dialog>
     <dialog id="space-dialog" class="sheet" aria-labelledby="space-dialog-title">
       <form id="space-form">
         <div class="sheet-header"><h2 id="space-dialog-title">A new space</h2><button type="button" class="icon-button" data-close="space-dialog" aria-label="Close" data-icon="close"></button></div>

@@ -3,7 +3,7 @@
   "name": "Arclet — a calmer sidebar",
   "short_name": "Arclet",
   "description": "A calmer home for your tabs. Organize spaces, save favorites, and find your focus.",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "minimum_chrome_version": "116",
   "incognito": "not_allowed",
   "permissions": ["sidePanel", "tabs", "webNavigation", "storage", "favicon"],

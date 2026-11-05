@@ -2,12 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { defaultData } from '../src/model.js';
-import { exportData, normalizeImport, planImport, MAX_TRANSFER_BYTES } from '../src/transfer.js';
+import { exportData, normalizeImport, planImport, MAX_TRANSFER_BYTES, TRANSFER_VERSION } from '../src/transfer.js';
 import { pinnedEntries } from '../src/pinned-order.js';
 import { fakeBrowser, tab } from './fake-browser.js';
 
 const example = JSON.parse(await readFile(new URL('../docs/import-example.json', import.meta.url), 'utf8'));
-const file = fields => ({ format: 'arclet', version: 1, ...fields });
+const file = fields => ({ format: 'arclet', version: TRANSFER_VERSION, ...fields });
 const pin = (url, fields = {}) => ({ type: 'pin', url, ...fields });
 const folder = (name, items = [], fields = {}) => ({ type: 'folder', name, items, ...fields });
 
@@ -74,7 +74,7 @@ test('settings are opt-in and partial settings preserve all omitted preferences'
 test('invalid formats, fields, nested folders and unsafe pages are rejected before mutation', () => {
   const data = defaultData();
   const before = structuredClone(data);
-  const bad = [null, [], {}, { format: 'other', version: 1, favorites: [] }, file({ favorites: [], version: 2 }),
+  const bad = [null, [], {}, { format: 'other', version: 1, favorites: [] }, file({ favorites: [], version: 3 }),
     file({ favorites: [], tabs: [] }), JSON.parse('{"format":"arclet","version":1,"favorites":[],"__proto__":{}}'),
     file({ spaces: [{ name: 'X', items: [folder('F', [folder('nested')])] }] }),
     ...['javascript:alert(1)', 'file:///tmp/x', 'data:text/plain,hi', 'chrome://settings/', 'not a URL'].map(url => file({ favorites: [{ url }] })),
@@ -87,13 +87,13 @@ test('invalid formats, fields, nested folders and unsafe pages are rejected befo
   assert.deepEqual(data, before);
 });
 
-test('canonical URL and group-name duplicates are rejected within the file', () => {
+test('duplicate favorite URLs and group names are rejected; repeated pinned URLs are supported', () => {
   for (const document of [
     file({ favorites: [{ url: 'https://EXAMPLE.COM' }, { url: 'https://example.com/' }] }),
     file({ spaces: [{ name: 'X' }, { name: ' X ' }] }),
-    file({ spaces: [{ name: 'X', items: [folder('F'), folder('F')] }] }),
-    file({ spaces: [{ name: 'X', items: [pin('https://a.test'), folder('F', [pin('https://a.test/')])] }] })
+    file({ spaces: [{ name: 'X', items: [folder('F'), folder('F')] }] })
   ]) assert.throws(() => normalizeImport(document), /duplicate/);
+  assert.doesNotThrow(() => normalizeImport(file({ spaces: [{ name: 'X', items: [pin('https://a.test'), folder('F', [pin('https://a.test/')])] }] })));
   assert.doesNotThrow(() => normalizeImport(file({ spaces: [{ name: 'X', items: [pin('https://a.test/')] }, { name: 'Y', items: [pin('https://a.test/')] }], favorites: [{ url: 'https://a.test/' }] })));
 });
 
@@ -189,15 +189,16 @@ test('page control placement exports and imports as an optional appearance setti
   assert.throws(() => normalizeImport(document), /left or right/);
 });
 
-test('space deletion merges duplicate pins and leaves the discarded instance open', async () => {
+test('space deletion preserves distinct matching pins and both live instances', async () => {
   const browser = fakeBrowser([tab(1, 'https://same.test/'), tab(2, 'https://same.test/', 1)]);
   await browser.run('SAVE_PAGE', { tabId: 1, kind: 'pin', spaceId: 'personal' });
   await browser.run('SAVE_PAGE', { tabId: 2, kind: 'pin', spaceId: 'work' });
   const state = await browser.run('DELETE_SPACE', { id: 'work' });
-  assert.equal(state.pins.length, 1);
+  assert.equal(state.pins.length, 2);
   assert.equal(state.tabs.length, 2);
-  assert.equal(state.tabs.find(tab => tab.id === 2).savedPageId, null);
-  assert.equal((await browser.run('EXPORT_DATA')).exportDocument.spaces[0].items.length, 1);
+  assert.ok(state.tabs.find(tab => tab.id === 2).savedPageId);
+  assert.notEqual(state.tabs[0].savedPageId, state.tabs[1].savedPageId);
+  assert.equal((await browser.run('EXPORT_DATA')).exportDocument.spaces[0].items.length, 2);
 });
 
 test('long addresses and whitespace-only titles save and round trip', async () => {
@@ -213,7 +214,7 @@ test('legacy duplicates and blank titles export without altering the source', ()
   data.pins = [1, 2].map(id => ({ id: String(id), spaceId: 'personal', url: 'https://old.test/', title: '\u00a0' }));
   const before = structuredClone(data);
   const exported = exportData(data);
-  assert.equal(exported.spaces[0].items.length, 1);
+  assert.equal(exported.spaces[0].items.length, 2);
   assert.equal(exported.spaces[0].items[0].title, 'old.test');
   assert.deepEqual(data, before);
 });

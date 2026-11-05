@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/federico-burgio/arclet/raw/main/docs/import-format.schema.json",
-  "title": "Arclet interchange format v1",
-  "description": "Runtime checks also enforce known icons, normalized URL and name uniqueness, 10,000 total records, 5 MiB, and destination space limits.",
+  "title": "Arclet interchange format v2 (v1 imports supported)",
+  "description": "Runtime checks also enforce known icons, unique favorite URLs and group names, 10,000 total records, 5 MiB, and destination space limits. Pinned URLs may repeat.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -10,7 +10,10 @@
       "const": "arclet"
     },
     "version": {
-      "const": 1
+      "enum": [
+        1,
+        2
+      ]
     },
     "exportedAt": {
       "type": "string",
@@ -274,8 +277,112 @@
             "left",
             "right"
           ]
+        },
+        "showUrlBar": {
+          "type": "boolean"
+        },
+        "homeUrl": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 5242880,
+          "pattern": "^[hH][tT][tT][pP][sS]?://",
+          "format": "uri"
+        },
+        "homeTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
+        },
+        "emailUrl": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 5242880,
+          "pattern": "^[hH][tT][tT][pP][sS]?://",
+          "format": "uri"
+        },
+        "emailTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
+        },
+        "calendarUrl": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 5242880,
+          "pattern": "^[hH][tT][tT][pP][sS]?://",
+          "format": "uri"
+        },
+        "calendarTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "version": {
+            "const": 1
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "settings": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "showUrlBar"
+                  ]
+                },
+                {
+                  "required": [
+                    "homeUrl"
+                  ]
+                },
+                {
+                  "required": [
+                    "homeTitle"
+                  ]
+                },
+                {
+                  "required": [
+                    "emailUrl"
+                  ]
+                },
+                {
+                  "required": [
+                    "emailTitle"
+                  ]
+                },
+                {
+                  "required": [
+                    "calendarUrl"
+                  ]
+                },
+                {
+                  "required": [
+                    "calendarTitle"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
 }

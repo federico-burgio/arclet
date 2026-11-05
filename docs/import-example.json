@@ -1,6 +1,6 @@
 {
   "format": "arclet",
-  "version": 1,
+  "version": 2,
   "favorites": [
     { "title": "Example", "url": "https://example.com/", "icon": "globe", "iconColor": "#477fc1" }
   ],

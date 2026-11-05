@@ -86,9 +86,17 @@ export function createDemoApi({ savedDataStore, savedStateStore, syncStore } = {
         created.emit(clone(tab));
         return clone(tab);
       },
+      duplicate: async id => {
+        const source = clone(find(id));
+        const created = await api.tabs.create({ windowId: source.windowId, url: source.url, active: true });
+        Object.assign(find(created.id), { title: source.title, pinned: source.pinned });
+        if (histories.has(id)) histories.set(created.id, clone(histories.get(id)));
+        return clone(find(created.id));
+      },
       update: async (id, change) => {
         const tab = find(id);
         if (change.active) tabs.filter(other => other.windowId === tab.windowId).forEach(other => { other.active = false; });
+        if ('pinned' in change) tab.pinned = change.pinned;
         if ('muted' in change) tab.mutedInfo = { muted: change.muted };
         if ('active' in change) tab.active = change.active;
         if ('url' in change) {

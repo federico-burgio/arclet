@@ -1,5 +1,6 @@
+import { controlFavorites } from './home-page.js';
 // A saved home is stable; ownership follows the running instance, not its URL.
-export const savedPages = data => [...data.favorites, ...data.pins];
+export const savedPages = data => [...data.favorites, ...data.pins, ...controlFavorites(data)];
 export const savedPage = (data, id) => savedPages(data).find(page => page.id === id);
 export function sameUrl(left, right) {
   try { return new URL(left).href === new URL(right).href; } catch { return false; }

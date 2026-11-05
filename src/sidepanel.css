@@ -46,6 +46,9 @@
   .favorites-section { padding-top: 23px; padding-bottom: 23px; max-height: 35dvh; overflow-y: auto; scrollbar-width: thin; }
   .search-toolbar { display: grid; grid-template-columns: repeat(4, 28px) minmax(0, 1fr); align-items: center; gap: 5px; }
   .search-toolbar[data-controls-position="right"] { grid-template-columns: minmax(0, 1fr) repeat(4, 28px); }
+  .search-toolbar[data-mode="controls"] { display: flex; }
+  .search-toolbar[data-mode="controls"] .icon-button { flex-shrink: 0; }
+  #navigation-spacer, #favorites-spacer { min-width: 0; flex: 1; }
   .search-toolbar[hidden] + .favorites-section { padding-top: 0; }
   .favorites-section[hidden] + .space-folder { margin-top: 16px; }
   .search-toolbar[hidden] + .favorites-section[hidden] + .space-folder { margin-top: 0; }
@@ -281,3 +284,15 @@
 .sync-capacity-popover h2 { font-size: 1rem; margin-bottom: 8px; }
 .sync-capacity-popover p { margin-bottom: 10px; color: var(--muted); }
 .sync-capacity-popover .sync-popover-usage { font-weight: 650; color: var(--text); }
+
+.control-favorite { position: relative; }
+.control-favorite.active { background: var(--active); }
+.control-favorite .saved-status { position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; }
+.control-favorite .saved-status svg { width: 10px; height: 10px; }
+
+@media (max-width: 290px) {
+  .search-toolbar[data-mode="controls"] { gap: 3px; }
+  .search-toolbar[data-mode="controls"] .icon-button { width: 24px; height: 26px; padding: 4px; }
+}
+
+.pins-toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 3px; padding: 0 4px 6px; }

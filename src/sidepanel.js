@@ -1,3 +1,4 @@
+import { CONTROL_FAVORITES, controlFavorite, navigationMode } from './home-page.js';
 import { syncPercent, syncUsage, syncStatus } from './sync-ui.js';
 import { COLORS, DEFAULT_SPACE_COLOR, matchingTabs, openTabsForSpace, pageLabel } from './model.js';
 import { icon } from './icons.js';
@@ -6,7 +7,7 @@ import { openIconPicker } from './icon-picker.js';
 import { pinnedEntries } from './pinned-order.js';
 import { createSavedItemDrag } from './pin-drag.js';
 import { createFavoriteDrag } from './favorite-drag.js';
-import { pageSession } from './saved-tabs.js';
+import { pageSession, savedPages } from './saved-tabs.js';
 
 const $ = selector => document.querySelector(selector);
 const make = (tag, className, text) => {
@@ -54,6 +55,8 @@ let selectedColor = DEFAULT_SPACE_COLOR;
 let selectedSpaceBackground = null;
 let selectedIcon = 'sun';
 let selectedIconColor = null;
+let editingPage;
+let pageAppearance;
 let editingFolder;
 let folderSpaceId;
 let folderPageId;
@@ -173,16 +176,7 @@ function applyState(next) {
   state = next;
   document.documentElement.style.setProperty('--font-scale', state.fontScale / 100);
   applyTheme();
-  $('#search-toolbar').hidden = !state.showSearchBar;
-  const toolbar = $('#search-toolbar');
-  if (toolbar.dataset.controlsPosition !== state.pageControlsPosition) {
-    const focused = document.activeElement;
-    const controls = ['#back-page', '#forward-page', '#refresh-page', '#copy-url'].map($);
-    const search = $('#search-button');
-    toolbar.dataset.controlsPosition = state.pageControlsPosition;
-    toolbar.replaceChildren(...(state.pageControlsPosition === 'right' ? [search, ...controls] : [...controls, search]));
-    if (toolbar.contains(focused)) focused.focus({ preventScroll: true });
-  }
+  renderNavigation();
   updatePageActions();
   renderSyncCapacity();
   const space = state.spaces.find(space => space.id === state.spaceId);
@@ -243,6 +237,103 @@ function saveCurrent(kind) {
   return command('SAVE_PAGE', { kind, tabId: tab.id }, kind === 'favorite' ? 'Added to your favorites.' : 'Pinned to this space.');
 }
 
+function renderNavigation() {
+  const toolbar = $('#search-toolbar');
+  const mode = navigationMode(state);
+  const side = state.pageControlsPosition;
+  toolbar.hidden = mode === 'hidden';
+  $('#favorites-spacer').hidden = mode !== 'controls' || !CONTROL_FAVORITES.some(item => controlFavorite(state, item.kind));
+  const key = `${mode}:${side}`;
+  if (toolbar.dataset.layout !== key) {
+    const focused = document.activeElement;
+    const navigation = ['#back-page', '#forward-page', '#refresh-page'].map($);
+    const copy = $('#copy-url'), search = $('#search-button'), spacer = $('#navigation-spacer'), favoritesSpacer = $('#favorites-spacer');
+    const shortcuts = CONTROL_FAVORITES.map(item => $(`#${item.kind}-page`));
+    spacer.hidden = mode !== 'controls';
+    search.hidden = mode === 'controls';
+    toolbar.dataset.mode = mode;
+    toolbar.dataset.controlsPosition = side;
+    toolbar.dataset.layout = key;
+    const order = mode === 'controls'
+      ? side === 'right' ? [copy, spacer, ...shortcuts, favoritesSpacer, ...navigation, search] : [...navigation, favoritesSpacer, ...shortcuts, spacer, copy, search]
+      : side === 'right' ? [search, ...navigation, copy, ...shortcuts, spacer, favoritesSpacer] : [...navigation, copy, search, ...shortcuts, spacer, favoritesSpacer];
+    toolbar.replaceChildren(...order);
+    if (toolbar.contains(focused) && !focused.hidden) focused.focus({ preventScroll: true });
+  }
+  for (const definition of CONTROL_FAVORITES) {
+    const page = controlFavorite(state, definition.kind);
+    const node = $(`#${definition.kind}-page`);
+    node.hidden = mode !== 'controls' || !page;
+    node.replaceChildren(icon(definition.icon));
+    if (page) {
+      const { tab, status } = pageSession(page, state.tabs);
+      node.setAttribute('aria-label', page.title);
+      decorateSavedItem(node, page, tab, status);
+      node.classList.toggle('active', !!tab?.active);
+      if (status === 'away') node.append(savedIndicator());
+    } else {
+      node.title = `Choose a URL for ${definition.title} in Settings`;
+      node.setAttribute('aria-label', `Set ${definition.title} URL`);
+      node.removeAttribute('aria-description');
+      node.removeAttribute('data-saved-status');
+      node.classList.remove('active', 'saved-loading');
+    }
+  }
+}
+for (const definition of CONTROL_FAVORITES) {
+  const node = $(`#${definition.kind}-page`);
+  node.addEventListener('click', async () => {
+    const page = controlFavorite(state, definition.kind);
+    if (page) command('OPEN_PAGE', { id: page.id });
+    else try { await platform.openOptions('sidebar'); } catch (error) { toast(error.message, true); }
+  });
+  bindContextMenu(node, (x, y) => {
+    const page = controlFavorite(state, definition.kind);
+    const session = page && pageSession(page, state.tabs);
+    openMenu(x, y, [
+      ...(page ? [...savedEditActions(page, definition.kind), ...savedSessionActions(page, session.tab, session.status)] : []),
+      { label: `Set ${definition.title} URL`, icon: definition.icon, action: async () => {
+        try { await platform.openOptions('sidebar'); } catch (error) { toast(error.message, true); }
+      } }
+    ]);
+  });
+}
+function savedEditActions(page, kind) {
+  return [
+    { label: 'Duplicate', icon: 'copy', action: () => command('DUPLICATE_PAGE', { kind, id: page.id }) },
+    { label: 'Edit', icon: 'pencil', action: () => {
+      editingPage = { kind, id: page.id };
+      pageAppearance = { icon: page.icon ?? null, iconColor: page.iconColor ?? null };
+      const special = CONTROL_FAVORITES.find(item => item.kind === kind);
+      $('#edit-page-title').textContent = kind === 'pin' ? 'Edit pinned page' : special ? `Edit ${special.title}` : 'Edit favorite';
+      $('#saved-page-name').value = page.title;
+      $('#page-icon-settings').hidden = !!special;
+      renderAppearanceButton($('#page-appearance'), pageAppearance);
+      $('#edit-page-error').hidden = true;
+      $('#edit-page-dialog').showModal();
+      $('#saved-page-name').select();
+    } }
+  ];
+}
+$('#edit-page-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!editingPage) return;
+  $('#save-page').disabled = true;
+  try {
+    const next = await platform.request('EDIT_PAGE', { ...editingPage, title: $('#saved-page-name').value, ...(!$('#page-icon-settings').hidden ? pageAppearance : {}) });
+    applyState(next);
+    $('#edit-page-dialog').close();
+  } catch (error) { $('#edit-page-error').textContent = error.message; $('#edit-page-error').hidden = false; }
+  finally { $('#save-page').disabled = false; }
+});
+$('#edit-page-dialog').addEventListener('close', () => { editingPage = null; pageAppearance = null; });
+$('#page-appearance').addEventListener('click', () => openIconPicker({ appearance: pageAppearance, optional: true,
+  title: 'Choose page icon', onApply: appearance => {
+    pageAppearance = appearance;
+    renderAppearanceButton($('#page-appearance'), appearance);
+  }
+}));
+
 function renderSyncCapacity() {
   const sync = state.sync;
   const button = $('#sync-capacity-button');
@@ -286,10 +377,9 @@ function renderFavorites() {
       audio.setAttribute('aria-hidden', 'true');
       node.append(audio);
     }
-    if (state.showFavoriteLabels) node.append(make('span', 'favorite-label', pageLabel(page.url)));
+    if (state.showFavoriteLabels) node.append(make('span', 'favorite-label', page.title));
     bindContextMenu(node, (x, y) => openMenu(x, y, [
-      { label: 'Customize icon', icon: 'palette', action: () => editPageIcon(page, 'favorite') },
-      ...favoriteOrderingActions(page),
+      ...savedEditActions(page, 'favorite'),
       ...savedSessionActions(page, liveTab, status),
       { label: 'Remove favorite', icon: 'close', action: () => command('REMOVE_PAGE', { kind: 'favorite', id: page.id }) }
     ]));
@@ -369,9 +459,8 @@ function pageRow(page) {
   if (liveTab?.audible || liveTab?.mutedInfo?.muted) row.append(button(liveTab.mutedInfo?.muted ? 'Unmute tab' : 'Mute tab', liveTab.mutedInfo?.muted ? 'muted' : 'volume', 'tab-action audible', () => command('MUTE_TAB', { id: liveTab.id })));
   if (liveTab) row.append(button(`Close ${page.title}`, 'close', 'tab-action', () => command('CLOSE_SAVED_PAGE', { id: page.id })));
   bindContextMenu(row, (x, y) => openMenu(x, y, [
-    { label: 'Customize icon', icon: 'palette', action: () => editPageIcon(page, 'pin') },
+    ...savedEditActions(page, 'pin'),
     { label: 'Move to folder', icon: 'folder-input', action: () => openPinFolders(page, x, y) },
-    ...orderingActions('pin', page),
     favoriteAction(page, { pageId: page.id }),
     ...savedSessionActions(page, liveTab, status),
     { separator: true },
@@ -427,7 +516,6 @@ function folderRow(folder) {
   group.append(heading, contents);
   bindContextMenu(heading, (x, y) => openMenu(x, y, [
     { label: 'Edit folder', icon: 'edit', action: () => openFolderEditor(folder) },
-    ...orderingActions('folder', folder),
     { label: 'New folder', icon: 'folder-plus', action: () => openFolderEditor() },
     { separator: true },
     { label: 'Remove folder, keep pages', icon: 'trash', action: () => command('DELETE_FOLDER', { id: folder.id }, 'Folder removed. Its pinned pages were kept.') }
@@ -437,14 +525,20 @@ function folderRow(folder) {
 
 function renderPins() {
   const entries = pinnedEntries(state, state.spaceId);
+  const folders = state.folders.filter(folder => folder.spaceId === state.spaceId);
+  $('#collapse-folders').disabled = !folders.some(folder => !folder.collapsed);
+  $('#expand-folders').disabled = !folders.some(folder => folder.collapsed);
   const list = $('#pins');
   list.replaceChildren(...entries.map(({ kind, item }) => kind === 'folder' ? folderRow(item) : pageRow(item)));
   const outside = make('div', 'pin-root-drop', 'Drop here outside folders');
   outside.dataset.pinRootDrop = '';
   list.append(outside);
-  $('.pins-section').hidden = entries.length === 0;
   $('#pins-divider').hidden = entries.length === 0;
 }
+
+$('#new-folder').addEventListener('click', () => openFolderEditor());
+$('#collapse-folders').addEventListener('click', () => command('SET_FOLDERS_COLLAPSED', { spaceId: state.spaceId, collapsed: true }));
+$('#expand-folders').addEventListener('click', () => command('SET_FOLDERS_COLLAPSED', { spaceId: state.spaceId, collapsed: false }));
 
 const pinnedDrag = createSavedItemDrag({
   root: $('#pins'), scroll: $('.content-scroll'),
@@ -465,11 +559,6 @@ $('#pins').addEventListener('drop', event => {
   finishDrag();
   if (drop) command('SAVE_PAGE', { kind: 'pin', tabId, spaceId: state.spaceId, ...drop }, 'Pinned in place.');
 });
-
-function editPageIcon(page, kind) {
-  openIconPicker({ appearance: page, optional: true, title: 'Customize page icon',
-    onApply: appearance => command('SET_PAGE_ICON', { id: page.id, kind, ...appearance }) });
-}
 
 function openPinFolders(page, x, y) {
   openMenu(x, y, [
@@ -514,6 +603,7 @@ function renderTabs() {
     row.append(button(`Close ${tab.title || 'tab'}`, 'close', 'tab-action', () => command('CLOSE_TAB', { id: tab.id })));
     const showTabMenu = (x, y) => {
       openMenu(x, y, [
+        { label: 'Duplicate', icon: 'copy', action: () => command('DUPLICATE_TAB', { id: tab.id }) },
         { label: 'Pin to this space', icon: 'pin', action: () => command('SAVE_PAGE', { kind: 'pin', tabId: tab.id }, 'Pinned to this space.') },
         favoriteAction(tab, { tabId: tab.id }),
         { label: tab.mutedInfo?.muted ? 'Unmute tab' : 'Mute tab', icon: tab.mutedInfo?.muted ? 'volume' : 'muted', action: () => command('MUTE_TAB', { id: tab.id }) },
@@ -530,7 +620,6 @@ function renderTabs() {
     row.addEventListener('dragstart', event => {
       draggingId = tab.id;
       document.body.classList.add('tab-dragging');
-      $('.pins-section').hidden = false;
       event.dataTransfer.setData('text/plain', String(tab.id));
       event.dataTransfer.effectAllowed = 'move';
       row.classList.add('dragging');
@@ -561,7 +650,6 @@ function finishDrag() {
   document.body.classList.remove('tab-dragging');
   pinnedDrag.clear();
   favoritesDrag.clear();
-  if (state) $('.pins-section').hidden = pinnedEntries(state, state.spaceId).length === 0;
   document.querySelectorAll('.dragging, .drag-over, .drop-target').forEach(node => node.classList.remove('dragging', 'drag-over', 'drop-target'));
   if (deferredState) { const next = deferredState; deferredState = null; applyState(next); }
 }
@@ -635,7 +723,7 @@ function renderSearch(reset = true) {
     const text = make('span', 'result-text');
     text.append(make('span', 'result-title', tab.title || 'New tab'), make('span', 'result-url', pageLabel(tab.url)));
     const space = state.spaces.find(space => space.id === tab.spaceId);
-    const owner = [...state.favorites, ...state.pins].find(page => page.id === tab.savedPageId);
+    const owner = savedPages(state).find(page => page.id === tab.savedPageId);
     if (owner) text.append(make('span', 'result-owner', `In ${owner.title}`));
     node.append(favicon(tab), text, make('span', 'result-space', owner && !owner.spaceId ? 'Favorite' : space?.name || ''));
     list.append(node);
@@ -758,7 +846,7 @@ $('#reset-space-background').addEventListener('click', () => {
 });
 
 function renderAppearanceButton(node, appearance) {
-  node.replaceChildren(icon(appearance.icon, appearance.iconColor), make('span', '', 'Choose icon & color'), icon('chevronDown'));
+  node.replaceChildren(icon(appearance.icon ?? 'globe', appearance.iconColor), make('span', '', 'Choose icon & color'), icon('chevronDown'));
 }
 $('#space-appearance').addEventListener('click', () => openIconPicker({
   appearance: { icon: selectedIcon, iconColor: selectedIconColor }, onApply: appearance => {

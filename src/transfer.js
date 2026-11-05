@@ -1,11 +1,12 @@
+import { CONTROL_FAVORITES, controlFavorites } from './home-page.js';
 import { COLORS, DEFAULT_SPACE_COLOR, FONT_SCALES, MAX_FAVORITES_PER_ROW, defaultData, iconAppearance, pageLabel, safeSavedUrl } from './model.js';
 import { normalizePinnedOrder, pinnedEntries } from './pinned-order.js';
 
 export const TRANSFER_FORMAT = 'arclet';
-export const TRANSFER_VERSION = 1;
+export const TRANSFER_VERSION = 2;
 export const MAX_TRANSFER_BYTES = 5 * 1024 * 1024;
 const MAX_RECORDS = 10000;
-const SETTINGS = ['theme', 'backgroundColor', 'showSearchBar', 'pageControlsPosition', 'showFavoriteLabels', 'favoritesPerRow', 'fontScale'];
+const SETTINGS = ['theme', 'backgroundColor', 'showSearchBar', 'showUrlBar', ...CONTROL_FAVORITES.flatMap(item => [item.urlKey, item.titleKey]), 'pageControlsPosition', 'showFavoriteLabels', 'favoritesPerRow', 'fontScale'];
 const PAGE_FIELDS = ['url', 'title', 'icon', 'iconColor'];
 const fail = (path, message) => { throw new Error(`${path}: ${message}`); };
 // Tag size/count failures so callers can tell a full layout from a malformed one.
@@ -13,7 +14,7 @@ const limitError = (message, limit) => Object.assign(new Error(message), { limit
 
 // What a change adds to a backup: items, plus address bytes (the only unbounded field).
 export function backupSize(data) {
-  const pages = [...data.favorites, ...data.pins];
+  const pages = [...data.favorites, ...data.pins, ...controlFavorites(data)];
   return { records: data.spaces.length + data.folders.length + pages.length,
     urlBytes: pages.reduce((total, page) => total + String(page.url ?? '').length, 0) };
 }
@@ -55,7 +56,7 @@ export function normalizeImport(document) {
   if (bytes > MAX_TRANSFER_BYTES) throw limitError('Import files must be 5 MiB or smaller.', 'bytes');
   object(document, 'File', ['format', 'version', 'exportedAt', 'spaces', 'favorites', 'settings']);
   if (document.format !== TRANSFER_FORMAT) fail('File', 'expected format “arclet”. See the format guide.');
-  if (document.version !== TRANSFER_VERSION) fail('File', 'only Arclet format version 1 is supported.');
+  if (![1, TRANSFER_VERSION].includes(document.version)) fail('File', 'Arclet format versions 1 and 2 are supported.');
   if (!Object.hasOwn(document, 'spaces') && !Object.hasOwn(document, 'favorites')) fail('File', 'include spaces or favorites.');
   if (document.exportedAt !== undefined && (typeof document.exportedAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(document.exportedAt) || !Number.isFinite(Date.parse(document.exportedAt)))) {
     fail('exportedAt', 'expected an ISO date string.');
@@ -95,7 +96,7 @@ export function normalizeImport(document) {
     const folders = new Set();
     function pin(value, itemPath) {
       const result = page(value, itemPath, true);
-      unique(result.url, urls, itemPath, 'pinned URL in the space');
+      if (document.version === 1) unique(result.url, urls, itemPath, 'pinned URL in the space');
       return result;
     }
     const items = list(value.items, `${path}.items`).map((item, itemIndex) => {
@@ -115,7 +116,8 @@ export function normalizeImport(document) {
   if (spaces.length > 12) throw new Error('Arclet supports at most 12 spaces.');
   let settings;
   if (document.settings !== undefined) {
-    const value = object(document.settings, 'settings', SETTINGS);
+    const value = object(document.settings, 'settings', document.version === 1
+      ? SETTINGS.filter(key => key !== 'showUrlBar' && !CONTROL_FAVORITES.some(item => [item.urlKey, item.titleKey].includes(key))) : SETTINGS);
     settings = {};
     for (const key of Object.keys(value)) {
       const entry = value[key];
@@ -123,8 +125,12 @@ export function normalizeImport(document) {
       if (key === 'pageControlsPosition' && !['left', 'right'].includes(entry)) fail(`settings.${key}`, 'choose left or right.');
       if (key === 'favoritesPerRow' && (!Number.isInteger(entry) || entry < 1 || entry > MAX_FAVORITES_PER_ROW)) fail(`settings.${key}`, 'choose an integer from 1 to 8.');
       if (key === 'fontScale' && !FONT_SCALES.includes(entry)) fail(`settings.${key}`, 'choose 90, 100, 110, 125, or 150.');
-      if ((key === 'showSearchBar' || key === 'showFavoriteLabels') && typeof entry !== 'boolean') fail(`settings.${key}`, 'expected true or false.');
-      settings[key] = key === 'backgroundColor' ? hex(entry, `settings.${key}`) : entry;
+      if ((key === 'showSearchBar' || key === 'showUrlBar' || key === 'showFavoriteLabels') && typeof entry !== 'boolean') fail(`settings.${key}`, 'expected true or false.');
+      const urlSetting = CONTROL_FAVORITES.some(item => item.urlKey === key);
+      const titleSetting = CONTROL_FAVORITES.some(item => item.titleKey === key);
+      if (urlSetting && entry !== null) count();
+      settings[key] = titleSetting ? text(entry, `settings.${key}`, 200) : urlSetting ? (entry === null ? null : safeSavedUrl(text(entry, `settings.${key}`, MAX_TRANSFER_BYTES)))
+        : key === 'backgroundColor' ? hex(entry, `settings.${key}`) : entry;
     }
   }
   return { format: TRANSFER_FORMAT, version: TRANSFER_VERSION, favorites, spaces, ...(settings ? { settings } : {}) };
@@ -132,8 +138,8 @@ export function normalizeImport(document) {
 
 export function exportData(data, now = new Date()) {
   const page = item => ({ title: item.title?.trim() || pageLabel(item.url), url: item.url, icon: item.icon ?? null, iconColor: item.iconColor ?? null });
-  // Older versions could create duplicate pins when merging spaces. Keep backups
-  // usable without mutating the saved layout or closing any running instances.
+  // Favorite addresses stay unique; pins are distinct saved items even when
+  // their addresses match (for example after Duplicate).
   const uniquePages = (pages, seen = new Set()) => pages.filter(item => claimUrl(item, seen));
   function claimUrl(item, seen) {
     const url = safeSavedUrl(item.url);
@@ -157,13 +163,12 @@ export function exportData(data, now = new Date()) {
     favorites: uniquePages(data.favorites).map(page),
     spaces: data.spaces.map(space => {
       const folderNames = new Set();
-      const urls = new Set();
       return { name: uniqueName(space.name, spaceNames, 32), color: space.color,
       backgroundColor: space.backgroundColor ?? null, icon: space.icon, iconColor: space.iconColor ?? null,
       items: pinnedEntries(data, space.id).flatMap(({ kind, item }) => {
-        if (kind === 'pin') return claimUrl(item, urls) ? [{ type: 'pin', ...page(item) }] : [];
+        if (kind === 'pin') return [{ type: 'pin', ...page(item) }];
         return [{ type: 'folder', name: uniqueName(item.name, folderNames, 64), icon: item.icon, iconColor: item.iconColor ?? null, collapsed: item.collapsed ?? false,
-          items: uniquePages(pinnedEntries(data, space.id, item.id).map(({ item }) => item), urls).map(item => ({ type: 'pin', ...page(item) })) }];
+          items: pinnedEntries(data, space.id, item.id).map(({ item }) => item).map(item => ({ type: 'pin', ...page(item) })) }];
       }) };
     }),
     settings: Object.fromEntries(SETTINGS.map(key => [key, data[key] ?? defaultData()[key]]))
@@ -196,13 +201,16 @@ export function planImport(existing, document, applySettings = false) {
       data.spaces.push(space);
       summary.newSpaces++;
     }
-    const urls = new Set(data.pins.filter(pin => pin.spaceId === space.id).map(pin => pin.url));
+    const occurrences = new Map();
+    for (const pin of data.pins.filter(pin => pin.spaceId === space.id)) occurrences.set(pin.url, (occurrences.get(pin.url) ?? 0) + 1);
+    const incomingOccurrences = new Map();
     let rootOrder = pinnedEntries(data, space.id).length;
     function addPin(source, folderId, order) {
-      if (urls.has(source.url)) { summary.skippedPages++; return false; }
+      const occurrence = (incomingOccurrences.get(source.url) ?? 0) + 1;
+      incomingOccurrences.set(source.url, occurrence);
+      if ((occurrences.get(source.url) ?? 0) >= occurrence) { summary.skippedPages++; return false; }
       const { type, ...properties } = source;
       data.pins.push({ ...properties, id: crypto.randomUUID(), spaceId: space.id, ...(folderId ? { folderId } : {}), order });
-      urls.add(source.url);
       summary.pins++;
       return true;
     }

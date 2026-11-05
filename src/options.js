@@ -1,6 +1,8 @@
+import { CONTROL_FAVORITES, navigationMode } from './home-page.js';
 import { syncUsage, syncStatus } from './sync-ui.js';
 import { capacityMessage } from './sync-format.js';
 import { icon } from './icons.js';
+import { safeSavedUrl } from './model.js';
 import { connect } from './platform.js';
 import { MAX_TRANSFER_BYTES } from './transfer.js';
 
@@ -18,6 +20,7 @@ let refreshTimer;
 let importDraft;
 let syncReview;
 let reviewingSync = false;
+const destinationDrafts = new Set();
 const darkMode = matchMedia('(prefers-color-scheme: dark)');
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 $('#settings-shortcut').textContent = $('#help-search-shortcut').textContent = isMac ? '⌘ K' : 'Ctrl K';
@@ -75,7 +78,12 @@ function applyState(next) {
   state = next;
   document.documentElement.style.setProperty('--font-scale', state.fontScale / 100);
   applyTheme();
-  $('#show-search-bar').checked = state.showSearchBar;
+  $('#navigation-mode').value = navigationMode(state);
+  $('#control-favorites-settings').hidden = navigationMode(state) !== 'controls';
+  for (const definition of CONTROL_FAVORITES) {
+    const input = $(`#${definition.kind}-url`);
+    if (document.activeElement !== input && !destinationDrafts.has(definition.kind)) input.value = state[definition.urlKey] ?? '';
+  }
   $('#page-controls-position').value = state.pageControlsPosition;
   $('#show-favorite-labels').checked = state.showFavoriteLabels;
   $('#favorites-per-row').value = String(state.favoritesPerRow);
@@ -276,13 +284,52 @@ $('#background-hex').addEventListener('change', event => {
   if (input.reportValidity()) setBackgroundColor(value);
 });
 $('#reset-background').addEventListener('click', () => setBackgroundColor(null));
-$('#show-search-bar').addEventListener('change', async event => {
-  const toggle = event.currentTarget;
-  toggle.disabled = true;
-  const ok = await command('SET_SEARCH_VISIBILITY', { visible: toggle.checked });
-  toggle.disabled = false;
-  if (!ok) toggle.checked = state.showSearchBar;
+$('#navigation-mode').addEventListener('change', async event => {
+  const select = event.currentTarget;
+  select.disabled = true;
+  const ok = await command('SET_TOOLBAR_MODE', { mode: select.value });
+  select.disabled = false;
+  if (!ok) select.value = navigationMode(state);
 });
+for (const definition of CONTROL_FAVORITES) {
+  const input = $(`#${definition.kind}-url`);
+  const error = $(`#${definition.kind}-url-error`);
+  let edit = 0;
+  input.addEventListener('input', () => {
+    edit++;
+    destinationDrafts.add(definition.kind);
+    input.removeAttribute('aria-invalid');
+    error.hidden = true;
+  });
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Enter') { event.preventDefault(); input.blur(); }
+  });
+  input.addEventListener('blur', async () => {
+    if (!destinationDrafts.has(definition.kind)) return;
+    const savedEdit = edit;
+    let url;
+    try { url = input.value.trim() ? safeSavedUrl(input.value.trim()) : null; }
+    catch (failure) {
+      error.textContent = failure.message;
+      error.hidden = false;
+      input.setAttribute('aria-invalid', 'true');
+      $('#save-status-text').textContent = 'Could not save this change';
+      return;
+    }
+    const ok = await command('SET_CONTROL_FAVORITE_URL', { kind: definition.kind, url });
+    // A response must never replace text entered after this save started.
+    if (edit !== savedEdit) return;
+    if (ok) {
+      destinationDrafts.delete(definition.kind);
+      input.value = url ?? '';
+      input.removeAttribute('aria-invalid');
+      error.hidden = true;
+    } else {
+      error.textContent = `Not saved. ${$('#settings-error').textContent}`;
+      error.hidden = false;
+    }
+  });
+}
 $('#page-controls-position').addEventListener('change', async event => {
   const select = event.currentTarget;
   select.disabled = true;

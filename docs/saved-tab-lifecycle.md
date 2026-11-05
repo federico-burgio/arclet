@@ -32,6 +32,14 @@ Opening a closed saved item can adopt an unassociated exact-home tab in the same
 
 Reordering saved items, changing appearance, and filing pins into folders preserve their instances. An associated pin remains assigned to its saved space. Moving a running tab to a different space through a tab-only action requires unpinning it first; it does not silently move or remove the pin. Moving a tab to another window transfers ownership unless that destination already has an instance for the saved item; in that case the arriving tab stays open as a regular tab.
 
+## Duplicate, rename, and control favorites
+
+Duplicate is available on favorites, pinned pages, and regular tabs. Favorites produce regular browser tabs; pins produce an independently owned pinned item immediately after the original in its folder/space; regular tabs remain regular. Open saved items use their running instance’s current page rather than their saved root. Closed items use their saved URL. Native duplication preserves Chrome’s history where an instance exists. Matching addresses never merge these independent pins.
+
+Edit updates a pin/favorite’s saved name, icon, and icon color together without changing its root, running page, identity, folder, or order. Canceling the editor discards all draft changes. Invalid edits leave the saved item intact. Favorite labels use the saved name. Duplicate pins retain their saved name and appearance; they can then be renamed independently.
+
+Controls-only navigation hides the URL launcher, keeps an empty center, and puts Copy URL opposite Back/Forward/Refresh/Home/Email/Calendar. Home, Email, and Calendar are separate favorites configured through individual HTTP/HTTPS URL fields in Settings, each with a dedicated owned instance per window. Unconfigured icons are hidden. The three destinations share one settings card, visible only in controls-only mode, with the toolbar icon beside each URL. URLs save when their field loses focus; invalid or rejected edits remain visible for correction. Clicking resumes that instance; its context menu can return to its saved URL, duplicate it as a regular tab, rename it, or close it. Changing or clearing a destination releases only that favorite’s old instances as regular tabs without closing them. Destinations and saved names persist across restart, optional settings import/export, and Chrome Sync; they count toward storage capacity. Keyboard search remains available even when the URL launcher or entire toolbar is hidden.
+
 ## Other tab operations
 
 Associated instances stay out of the regular tab section regardless of their current address. Independent duplicates remain visible. The broom, regular-tab bulk close, and middle-click protections use ownership, including for instances away from home. Native Chrome-pinned tab protection remains unchanged.

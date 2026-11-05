@@ -1,3 +1,4 @@
+import { CONTROL_FAVORITES, controlFavorite } from './home-page.js';
 import { createChromeSync } from './chrome-sync.js';
 import { assessSync, capacityMessage } from './sync-format.js';
 import { savedHome, observeSavedNavigation } from './saved-home.js';
@@ -236,13 +237,6 @@ export function createController(api, notify = () => {}, { apiTimeoutMs = 10000 
         const fallback = data.spaces[0].id;
         const existing = pinnedEntries(data, fallback).length;
         pinnedEntries(data, payload.id).forEach(({ item }, index) => { item.order = existing + index; });
-        const urls = new Set(data.pins.filter(pin => pin.spaceId === fallback).map(pin => pin.url));
-        data.pins = data.pins.filter(pin => {
-          if (pin.spaceId !== payload.id) return true;
-          if (urls.has(pin.url)) { clearSavedOwnership(state, pin.id); return false; }
-          urls.add(pin.url);
-          return true;
-        });
         for (const [id, space] of Object.entries(live.tabSpaces)) if (space === payload.id) live.tabSpaces[id] = fallback;
         for (const [id, space] of Object.entries(live.windowSpaces)) if (space === payload.id) live.windowSpaces[id] = fallback;
         data.pins.forEach(pin => { if (pin.spaceId === payload.id) pin.spaceId = fallback; });
@@ -271,6 +265,13 @@ export function createController(api, notify = () => {}, { apiTimeoutMs = 10000 
         const folder = data.folders.find(item => item.id === payload.id);
         if (!folder) throw new Error('This folder no longer exists.');
         folder.collapsed = !folder.collapsed;
+        break;
+      }
+      case 'SET_FOLDERS_COLLAPSED': {
+        const targetSpace = payload.spaceId ?? spaceId;
+        requireSpace(data, targetSpace);
+        if (typeof payload.collapsed !== 'boolean') throw new Error('Choose whether to collapse or expand folders.');
+        data.folders.filter(folder => folder.spaceId === targetSpace).forEach(folder => { folder.collapsed = payload.collapsed; });
         break;
       }
       case 'DELETE_FOLDER':
@@ -379,6 +380,59 @@ export function createController(api, notify = () => {}, { apiTimeoutMs = 10000 
         await api.tabs.move(tab.id, { index: target.index });
         break;
       }
+      case 'EDIT_PAGE':
+      case 'RENAME_PAGE': {
+        const special = CONTROL_FAVORITES.find(item => item.kind === payload.kind);
+        if (!['pin', 'favorite'].includes(payload.kind) && !special) throw new Error('Choose a pinned page or favorite.');
+        const page = special ? controlFavorite(data, special.kind) : data[payload.kind === 'pin' ? 'pins' : 'favorites'].find(page => page.id === payload.id);
+        if (!page || page.id !== payload.id) throw new Error('This saved page no longer exists.');
+        const title = typeof payload.title === 'string' ? payload.title.trim() : '';
+        if (!title || title.length > 200) throw new Error('Use a name between 1 and 200 characters.');
+        const appearance = type === 'EDIT_PAGE' && !special ? iconAppearance(payload, true) : {};
+        if (special) data[special.titleKey] = title;
+        else Object.assign(page, { title, ...appearance });
+        break;
+      }
+      case 'DUPLICATE_PAGE':
+      case 'DUPLICATE_TAB': {
+        let page, source;
+        if (type === 'DUPLICATE_TAB') {
+          source = await tabInWindow(payload.id);
+          if (live.pageOwners[source.id]) throw new Error('Duplicate this saved page from its own menu.');
+        } else {
+          const special = CONTROL_FAVORITES.find(item => item.kind === payload.kind);
+          if (!['pin', 'favorite'].includes(payload.kind) && !special) throw new Error('Choose a pinned page or favorite.');
+          page = special ? controlFavorite(data, special.kind) : data[payload.kind === 'pin' ? 'pins' : 'favorites'].find(page => page.id === payload.id);
+          if (!page || page.id !== payload.id) throw new Error('This saved page no longer exists.');
+          const owned = ownedTab(state, page.id, windowId);
+          if (owned) source = await tabInWindow(owned.id);
+        }
+        const url = source?.url || source?.pendingUrl || page?.url;
+        const targetSpace = page ? page.spaceId ?? spaceId : live.tabSpaces[source?.id] ?? spaceId;
+        let copy;
+        if (payload.kind === 'pin' && page) {
+          copy = { ...page, id: crypto.randomUUID(), url: safeSavedUrl(url) };
+          data.pins.push(copy);
+          movePinnedItem(data, { kind: 'pin', id: copy.id, folderId: page.folderId ?? null,
+            targetKind: 'pin', targetId: page.id, placement: 'after' });
+          assertBackup(originalData, data);
+          if (state.syncPrefs.enabled && !assessSync(data).fits) throw new Error(capacityMessage(assessSync(data)));
+        }
+        let created;
+        if (source) {
+          created = await api.tabs.duplicate(source.id);
+          if (!created?.id) throw new Error('Chrome could not duplicate this tab.');
+          if (created.windowId !== windowId) throw new Error('This tab moved to another window. Try duplicating it there.');
+          await api.tabs.update(created.id, { pinned: false, active: true });
+          live.tabSpaces[created.id] = targetSpace;
+          live.windowSpaces[windowId] = targetSpace;
+          live.fixedTabs[created.id] = true;
+          live.noRecovery[created.id] = true;
+          live.ownerKnown[created.id] = true;
+        } else created = await createTab(url, targetSpace);
+        if (copy) bindSavedTab(state, copy, created);
+        break;
+      }
       case 'SAVE_PAGE': {
         let source;
         if (payload.kind === 'favorite' && payload.pageId) {
@@ -479,6 +533,21 @@ export function createController(api, notify = () => {}, { apiTimeoutMs = 10000 
         if (!['left', 'right'].includes(payload.position)) throw new Error('Choose left or right for the page controls.');
         data.pageControlsPosition = payload.position;
         break;
+      case 'SET_TOOLBAR_MODE':
+        if (!['full', 'controls', 'hidden'].includes(payload.mode)) throw new Error('Choose a navigation bar mode.');
+        data.showSearchBar = payload.mode !== 'hidden';
+        if (payload.mode !== 'hidden') data.showUrlBar = payload.mode === 'full';
+        break;
+      case 'SET_HOME_URL':
+      case 'SET_CONTROL_FAVORITE_URL': {
+        const definition = CONTROL_FAVORITES.find(item => item.kind === (type === 'SET_HOME_URL' ? 'home' : payload.kind));
+        if (!definition) throw new Error('Choose Home, Email, or Calendar.');
+        if (payload.url !== null && typeof payload.url !== 'string') throw new Error(`Enter a URL for ${definition.title}, or leave it empty.`);
+        const url = payload.url?.trim() ? safeSavedUrl(payload.url.trim()) : null;
+        if (url !== data[definition.urlKey]) clearSavedOwnership(state, definition.id);
+        data[definition.urlKey] = url;
+        break;
+      }
       case 'SET_SEARCH_VISIBILITY':
         if (typeof payload.visible !== 'boolean') throw new Error('Choose whether to show the search bar.');
         data.showSearchBar = payload.visible;

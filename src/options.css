@@ -66,3 +66,14 @@ body.options-page { overflow: auto; min-width: 280px; }
 .sync-choice { display: flex; align-items: center; gap: 10px; font-size: .928571rem; line-height: 1.6; margin: 14px 0; }
 .sync-choice input { width: auto; margin: 0; accent-color: var(--primary); }
 .sync-review-message { font-size: .928571rem; line-height: 1.7; }
+
+.control-favorites-settings { padding-block: 22px; }
+.control-favorites-settings h2 { font-size: 1rem; margin-bottom: 8px; }
+.control-favorites-settings .settings-hint { margin: 0 0 8px; }
+.control-favorite-setting { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: start; gap: 16px; padding-block: 18px; }
+.control-favorite-setting + .control-favorite-setting { border-top: 1px solid var(--line); }
+.control-favorite-setting label { display: flex; align-items: center; gap: 10px; min-height: 38px; }
+.control-favorite-setting label svg { width: 18px; height: 18px; color: var(--muted); }
+.control-favorite-field .text-input { width: 100%; margin: 0; }
+.control-favorite-error { margin: 8px 0 0; color: var(--text); font-size: .857143rem; line-height: 1.5; overflow-wrap: anywhere; }
+@media (max-width: 700px) { .control-favorite-setting { grid-template-columns: minmax(0, 1fr); gap: 6px; } }

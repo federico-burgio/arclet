@@ -22,7 +22,7 @@
     <button type="button" role="tab" id="tab-import-export" aria-controls="import-export" aria-selected="false" tabindex="-1"><span data-icon="arrow-left-right"></span>Import &amp; export</button>
     <button type="button" role="tab" id="tab-about" aria-controls="about" aria-selected="false" tabindex="-1"><span data-icon="circle-question-mark"></span>Help &amp; about</button>
    </div>
-   <p class="settings-nav-note">Settings<br><span data-version>Arclet 0.17.0</span></p>
+   <p class="settings-nav-note">Settings<br><span data-version>Arclet 0.18.0</span></p>
   </aside>
   <main class="settings-main">
    <p id="preview-note" class="preview-note" hidden>Preview mode · sample data, separate from your extension</p>
@@ -56,16 +56,16 @@
     <p class="settings-subtitle">Choose what you see, and how it fits.</p>
       <div class="settings-card">
 
-        <div class="settings-toggle">
-          <div><label for="show-search-bar">Show search bar</label><p id="search-bar-help">Search is always available with the keyboard shortcut.</p></div>
-          <input id="show-search-bar" type="checkbox" role="switch" aria-describedby="search-bar-help" checked>
+        <div class="settings-toggle settings-select">
+          <div><label for="navigation-mode">Navigation bar</label><p id="navigation-mode-help">Show the full bar, keep controls with an empty middle, or hide it. Keyboard search stays available.</p></div>
+          <select id="navigation-mode" aria-describedby="navigation-mode-help"><option value="full">Controls and URL bar</option><option value="controls">Controls only</option><option value="hidden">Hidden</option></select>
         </div>
         <div class="settings-toggle settings-select">
-          <div><label for="page-controls-position">Page controls position</label><p id="page-controls-help">Place Back, Forward, Refresh, and Copy URL to the left or right of the search bar.</p></div>
+          <div><label for="page-controls-position">Page controls position</label><p id="page-controls-help">Choose the navigation side. In controls-only mode, Copy URL sits on the opposite side.</p></div>
           <select id="page-controls-position" aria-describedby="page-controls-help"><option value="left">Left</option><option value="right">Right</option></select>
         </div>
         <div class="settings-toggle">
-          <div><label for="show-favorite-labels">Show favorite labels</label><p id="favorite-labels-help">Display site names below favorite icons.</p></div>
+          <div><label for="show-favorite-labels">Show favorite labels</label><p id="favorite-labels-help">Display saved names below favorite icons.</p></div>
           <input id="show-favorite-labels" type="checkbox" role="switch" aria-describedby="favorite-labels-help" checked>
         </div>
         <div class="settings-toggle settings-select">
@@ -74,6 +74,22 @@
             <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option>
             <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
           </select>
+        </div>
+      </div>
+      <div id="control-favorites-settings" class="settings-card control-favorites-settings" hidden>
+        <h2>Control favorites</h2>
+        <p id="control-favorites-help" class="settings-hint">Choose the pages for these toolbar icons. URLs save when you leave the field. Leave a field empty to hide its icon; existing tabs stay open as regular tabs.</p>
+        <div class="control-favorite-setting">
+          <label for="home-url"><span data-icon="house" aria-hidden="true"></span>Home</label>
+          <div class="control-favorite-field"><input id="home-url" class="text-input" type="url" aria-label="Home URL" aria-describedby="control-favorites-help home-url-error" placeholder="https://example.com/" spellcheck="false"><p id="home-url-error" class="control-favorite-error" hidden></p></div>
+        </div>
+        <div class="control-favorite-setting">
+          <label for="email-url"><span data-icon="mail" aria-hidden="true"></span>Email</label>
+          <div class="control-favorite-field"><input id="email-url" class="text-input" type="url" aria-label="Email URL" aria-describedby="control-favorites-help email-url-error" placeholder="https://mail.example.com/" spellcheck="false"><p id="email-url-error" class="control-favorite-error" hidden></p></div>
+        </div>
+        <div class="control-favorite-setting">
+          <label for="calendar-url"><span data-icon="calendar-days" aria-hidden="true"></span>Calendar</label>
+          <div class="control-favorite-field"><input id="calendar-url" class="text-input" type="url" aria-label="Calendar URL" aria-describedby="control-favorites-help calendar-url-error" placeholder="https://calendar.example.com/" spellcheck="false"><p id="calendar-url-error" class="control-favorite-error" hidden></p></div>
         </div>
       </div>
       <p class="settings-hint">Search stays available with <span id="settings-shortcut">⌘ K</span> while the sidebar has focus.</p>
@@ -119,7 +135,7 @@
       <p class="fine-print">For a left sidebar, choose Left in Chrome’s side panel appearance settings. Chrome’s tab strip stays visible. Tabs return to their spaces when Chrome restores your previous session. Enable “Continue where you left off” in Chrome’s startup settings.</p>
       <p class="fine-print">Outline icons by Lucide, bundled on this device. ISC / MIT licenses included.</p>
       <p class="transfer-links about-links"><a href="https://github.com/federico-burgio/arclet" target="_blank" rel="noopener noreferrer">GitHub</a> · <a href="https://github.com/federico-burgio/arclet/releases" target="_blank" rel="noopener noreferrer">Releases</a></p>
-      <div class="settings-brand"><img class="brand-mark" src="icons/mark.svg" alt="" width="32" height="32"><div>Arclet <span data-version-number>0.17.0</span><p>Inspired by Arc. Independently made.</p></div></div>
+      <div class="settings-brand"><img class="brand-mark" src="icons/mark.svg" alt="" width="32" height="32"><div>Arclet <span data-version-number>0.18.0</span><p>Inspired by Arc. Independently made.</p></div></div>
 
    </section>
    <p id="save-status" class="save-status" role="status" aria-live="polite"><span data-icon="check"></span><span id="save-status-text">Loading settings…</span></p>
@@ -147,7 +163,7 @@
       <p id="import-filename" class="sheet-description"></p>
       <div id="import-summary" class="import-summary" aria-live="polite"></div>
       <p class="transfer-description">Spaces and folders with the same name are merged. Existing pages, their order, and their appearance are kept; new items are appended. No browser tabs are opened or closed.</p>
-      <div class="settings-toggle import-preferences"><div><label for="import-settings">Apply appearance settings</label><p id="import-settings-help">Replace your theme, background, font size, and sidebar preferences with settings from the file.</p></div><input id="import-settings" type="checkbox" role="switch" aria-describedby="import-settings-help"></div>
+      <div class="settings-toggle import-preferences"><div><label for="import-settings">Apply settings</label><p id="import-settings-help">Replace your appearance, navigation, Home/Email/Calendar destinations, and sidebar preferences with settings from the file.</p></div><input id="import-settings" type="checkbox" role="switch" aria-describedby="import-settings-help"></div>
       <p id="import-error" class="fine-print danger" role="alert" hidden></p>
       <div class="sheet-actions"><button type="button" class="text-button" data-close="import-dialog">Cancel</button><button id="confirm-import" type="button" class="primary-button">Import</button></div>
     </dialog>

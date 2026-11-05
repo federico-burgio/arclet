@@ -29,9 +29,16 @@ export function fakeBrowser(initial = [], { syncStore = {} } = {}) {
         const tab = { id: nextId++, windowId, url, active, title: url, pinned: false, index: current.filter(tab => tab.windowId === windowId).length };
         current.push(tab); return clone(tab);
       },
+      duplicate: async id => {
+        const source = clone(find(id));
+        const created = await api.tabs.create({ url: source.url || source.pendingUrl, windowId: source.windowId, active: true });
+        Object.assign(find(created.id), { title: source.title, pinned: source.pinned });
+        return clone(find(created.id));
+      },
       update: async (id, change) => {
         const tab = find(id);
         if (change.active) current.filter(other => other.windowId === tab.windowId).forEach(other => { other.active = false; });
+        if ('pinned' in change) tab.pinned = change.pinned;
         if ('muted' in change) tab.mutedInfo = { muted: change.muted };
         if ('active' in change) tab.active = change.active;
         if ('url' in change) { tab.url = change.url; delete tab.pendingUrl; }

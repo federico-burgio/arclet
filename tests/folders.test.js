@@ -136,3 +136,24 @@ test('unknown icons and invalid colors cannot enter saved data', async () => {
   assert.deepEqual((await browser.run()).folders, []);
   assert.equal((await browser.run()).pins[0].icon, undefined);
 });
+
+test('bulk collapse and expand persist and affect only the requested space', async () => {
+  const browser = fakeBrowser();
+  await browser.run('SAVE_FOLDER', { ...folderDraft, name: 'One', spaceId: 'personal' });
+  await browser.run('SAVE_FOLDER', { ...folderDraft, name: 'Two', spaceId: 'personal' });
+  await browser.run('SAVE_FOLDER', { ...folderDraft, name: 'Work', spaceId: 'work' });
+  let state = await browser.run('SET_FOLDERS_COLLAPSED', { collapsed: true });
+  assert.equal(state.folders.filter(folder => folder.spaceId === 'personal').every(folder => folder.collapsed), true);
+  assert.equal(state.folders.find(folder => folder.spaceId === 'work').collapsed, false);
+  const before = structuredClone(browser.local.data);
+  await assert.rejects(browser.run('SET_FOLDERS_COLLAPSED', { collapsed: 'yes' }));
+  await assert.rejects(browser.run('SET_FOLDERS_COLLAPSED', { spaceId: 'missing', collapsed: true }));
+  assert.deepEqual(browser.local.data, before);
+  browser.suspend();
+  assert.equal((await browser.run()).folders.filter(folder => folder.spaceId === 'personal').every(folder => folder.collapsed), true);
+  state = await browser.run('SET_FOLDERS_COLLAPSED', { spaceId: 'personal', collapsed: false });
+  assert.equal(state.folders.every(folder => !folder.collapsed), true);
+  await browser.run('SET_FOLDERS_COLLAPSED', { spaceId: 'work', collapsed: true });
+  state = await browser.run('SET_FOLDERS_COLLAPSED', { collapsed: false });
+  assert.equal(state.folders.find(folder => folder.spaceId === 'work').collapsed, true);
+});

@@ -1,3 +1,4 @@
+import { CONTROL_FAVORITES } from './home-page.js';
 import { normalizeStoredData } from './stored-data.js';
 
 export const SYNC_LIMIT = 80 * 1024;
@@ -19,6 +20,11 @@ export const canonical = value => JSON.stringify(value, (_key, entry) => entry &
 export function syncData(data) {
   return {
     version: 1, ...pick(data, SETTINGS),
+    ...(data.showUrlBar === false ? { showUrlBar: false } : {}),
+    ...Object.fromEntries(CONTROL_FAVORITES.flatMap(item => [
+      ...(data[item.urlKey] ? [[item.urlKey, data[item.urlKey]]] : []),
+      ...(data[item.titleKey] && data[item.titleKey] !== item.title ? [[item.titleKey, data[item.titleKey]]] : [])
+    ])),
     spaces: data.spaces.map(item => pick(item, ['id', 'name', 'color', 'backgroundColor', 'icon', 'iconColor'])),
     folders: data.folders.map(item => pick(item, ['id', 'spaceId', 'name', 'icon', 'iconColor', 'collapsed', 'order'])),
     favorites: data.favorites.map(item => pick(item, ['id', 'title', 'url', 'icon', 'iconColor'])),
@@ -54,7 +60,7 @@ export function packSync(data, head = {}) {
   const parts = partsFor(data);
   return {
     ...Object.fromEntries(Array.from({ length: Math.max(PART_SLOTS, parts.length) }, (_, index) => [`${SYNC_PREFIX}part.${index}`, parts[index] ?? ''])),
-    [SYNC_HEAD]: { version: 1, revision: PLACEHOLDER, parent: PLACEHOLDER, device: PLACEHOLDER,
+    [SYNC_HEAD]: { version: 2, revision: PLACEHOLDER, parent: PLACEHOLDER, device: PLACEHOLDER,
       updatedAt: '2000-01-01T00:00:00.000Z', hash: '0'.repeat(64), ...head, parts: parts.length }
   };
 }
@@ -63,7 +69,7 @@ export async function readSync(entries) {
   const head = entries[SYNC_HEAD];
   if (!head) return null;
   const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
-  if (head.version !== 1 || !uuid(head.revision) || !uuid(head.device) || (head.parent !== null && !uuid(head.parent)) ||
+  if (![1, 2].includes(head.version) || !uuid(head.revision) || !uuid(head.device) || (head.parent !== null && !uuid(head.parent)) ||
       typeof head.updatedAt !== 'string' || !Number.isFinite(Date.parse(head.updatedAt)) ||
       !Number.isInteger(head.parts) || head.parts < 1 || head.parts > 20 || !/^[0-9a-f]{64}$/.test(head.hash)) {
     throw new Error('The Chrome Sync configuration is not supported. Your local configuration is unchanged.');
