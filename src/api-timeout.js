@@ -22,6 +22,7 @@ export function boundedApi(api, timeoutMs = 10000) {
     sessions: methods(() => api.sessions, 'sessions'),
     storage: {
       local: methods(() => api.storage.local, 'storage.local'),
+      sync: methods(() => api.storage.sync, 'storage.sync'),
       session: methods(() => api.storage.session, 'storage.session')
     }
   };

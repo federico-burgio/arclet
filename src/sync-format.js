@@ -1,0 +1,116 @@
+import { normalizeStoredData } from './stored-data.js';
+
+export const SYNC_LIMIT = 80 * 1024;
+export const SYNC_WARNING = .8;
+export const SYNC_PREFIX = 'arclet.sync.';
+export const SYNC_HEAD = `${SYNC_PREFIX}head`;
+const PART_LIMIT = 7000;
+const PART_SLOTS = 20;
+const PLACEHOLDER = '00000000-0000-0000-0000-000000000000';
+const SETTINGS = ['theme', 'backgroundColor', 'showSearchBar', 'pageControlsPosition', 'showFavoriteLabels', 'favoritesPerRow', 'fontScale'];
+const pick = (value, keys) => Object.fromEntries(keys.map(key => [key, value[key] ?? null]));
+const bytes = text => new TextEncoder().encode(text).length;
+export const storageBytes = entries => Object.entries(entries).reduce((sum, [key, value]) => sum + bytes(key) + bytes(JSON.stringify(value)), 0);
+export const canonical = value => JSON.stringify(value, (_key, entry) => entry && typeof entry === 'object' && !Array.isArray(entry)
+  ? Object.fromEntries(Object.keys(entry).sort().map(key => [key, entry[key]])) : entry);
+
+// Explicit allowlist: no live tabs, recovery addresses, ownership, credentials,
+// device preferences, unknown legacy fields, or generated icon SVGs leave local storage.
+export function syncData(data) {
+  return {
+    version: 1, ...pick(data, SETTINGS),
+    spaces: data.spaces.map(item => pick(item, ['id', 'name', 'color', 'backgroundColor', 'icon', 'iconColor'])),
+    folders: data.folders.map(item => pick(item, ['id', 'spaceId', 'name', 'icon', 'iconColor', 'collapsed', 'order'])),
+    favorites: data.favorites.map(item => pick(item, ['id', 'title', 'url', 'icon', 'iconColor'])),
+    pins: data.pins.map(item => pick(item, ['id', 'spaceId', 'folderId', 'title', 'url', 'icon', 'iconColor', 'order']))
+  };
+}
+
+export async function fingerprint(value) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(typeof value === 'string' ? value : canonical(value)));
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function partsFor(data) {
+  const text = JSON.stringify(syncData(data));
+  const parts = [];
+  // Chunk the escaped JSON representation, not just raw character count. Even
+  // quotes, emoji and long saved URLs stay below Chrome's 8 KiB per-key quota.
+  let chunk = '';
+  let size = 2;
+  for (const char of text) {
+    const code = char.codePointAt(0);
+    const next = char === '\\' || char === '"' || [8, 9, 10, 12, 13].includes(code) ? 2
+      : code < 32 || (code >= 0xd800 && code <= 0xdfff) ? 6 : code < 128 ? 1 : code < 2048 ? 2 : code <= 65535 ? 3 : 4;
+    if (size + next > PART_LIMIT) { parts.push(chunk); chunk = ''; size = 2; }
+    chunk += char;
+    size += next;
+  }
+  if (chunk) parts.push(chunk);
+  return parts;
+}
+
+export function packSync(data, head = {}) {
+  const parts = partsFor(data);
+  return {
+    ...Object.fromEntries(Array.from({ length: Math.max(PART_SLOTS, parts.length) }, (_, index) => [`${SYNC_PREFIX}part.${index}`, parts[index] ?? ''])),
+    [SYNC_HEAD]: { version: 1, revision: PLACEHOLDER, parent: PLACEHOLDER, device: PLACEHOLDER,
+      updatedAt: '2000-01-01T00:00:00.000Z', hash: '0'.repeat(64), ...head, parts: parts.length }
+  };
+}
+
+export async function readSync(entries) {
+  const head = entries[SYNC_HEAD];
+  if (!head) return null;
+  const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
+  if (head.version !== 1 || !uuid(head.revision) || !uuid(head.device) || (head.parent !== null && !uuid(head.parent)) ||
+      typeof head.updatedAt !== 'string' || !Number.isFinite(Date.parse(head.updatedAt)) ||
+      !Number.isInteger(head.parts) || head.parts < 1 || head.parts > 20 || !/^[0-9a-f]{64}$/.test(head.hash)) {
+    throw new Error('The Chrome Sync configuration is not supported. Your local configuration is unchanged.');
+  }
+  const parts = Array.from({ length: head.parts }, (_, index) => entries[`${SYNC_PREFIX}part.${index}`]);
+  if (parts.some(part => typeof part !== 'string')) return { incomplete: true, head };
+  const text = parts.join('');
+  if (await fingerprint(text) !== head.hash) return { incomplete: true, head };
+  const used = storageBytes(Object.fromEntries(Object.entries(entries).filter(([key]) => key === SYNC_HEAD ||
+    Array.from({ length: PART_SLOTS }, (_, index) => `${SYNC_PREFIX}part.${index}`).includes(key))));
+  if (used > SYNC_LIMIT) throw new Error('The Chrome configuration exceeds the 80 KB Sync limit. Your local configuration is unchanged.');
+  let raw;
+  try { raw = JSON.parse(text); } catch { throw new Error('Chrome Sync contains an invalid configuration. Your local configuration is unchanged.'); }
+  const data = normalizeStoredData(raw);
+  if (canonical(syncData(data)) !== canonical(raw)) throw new Error('Chrome Sync contains an invalid configuration. Your local configuration is unchanged.');
+  return { head, data, used };
+}
+
+let cachedAssessment;
+export function assessSync(data) {
+  const document = canonical(syncData(data));
+  if (cachedAssessment?.document === document) return cachedAssessment.result;
+  const used = storageBytes(packSync(data));
+  const result = { used, limit: SYNC_LIMIT, ratio: used / SYNC_LIMIT, fits: used <= SYNC_LIMIT,
+    removePins: 0, pinsAloneEnough: true, counts: { spaces: data.spaces.length, folders: data.folders.length,
+      pins: data.pins.length, favorites: data.favorites.length } };
+  if (!result.fits) {
+    const sorted = [...data.pins].sort((a, b) => JSON.stringify(b).length - JSON.stringify(a).length);
+    const sizeAfter = count => {
+      const removed = new Set(sorted.slice(0, count).map(pin => pin.id));
+      return storageBytes(packSync({ ...data, pins: data.pins.filter(pin => !removed.has(pin.id)) }));
+    };
+    if (sizeAfter(sorted.length) > SYNC_LIMIT) result.pinsAloneEnough = false;
+    else {
+      let low = 0, high = sorted.length;
+      while (low < high) { const mid = Math.floor((low + high) / 2); if (sizeAfter(mid) <= SYNC_LIMIT) high = mid; else low = mid + 1; }
+      result.removePins = low;
+    }
+  }
+  cachedAssessment = { document, result };
+  return result;
+}
+
+export function capacityMessage(assessment) {
+  if (assessment.fits) return 'Your configuration fits within the 80 KB Sync limit.';
+  const remove = assessment.pinsAloneEnough
+    ? `Remove about ${assessment.removePins} pinned ${assessment.removePins === 1 ? 'URL' : 'URLs'}, starting with the longest addresses, to fit.`
+    : 'Removing pinned URLs alone is not enough. Reduce favorites or folders too.';
+  return `This configuration exceeds the 80 KB Sync limit. ${remove} Everything remains local. If Sync is on, explicitly disable it in Settings → Sync before saving a larger configuration.`;
+}

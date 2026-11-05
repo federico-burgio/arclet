@@ -1,7 +1,7 @@
 import { defaultData } from './model.js';
 
 // Explicit preview mode only. Real extension pages always use chrome.* via the worker.
-export function createDemoApi({ savedDataStore } = {}) {
+export function createDemoApi({ savedDataStore, savedStateStore, syncStore } = {}) {
   const event = () => {
     const listeners = new Set();
     return { addListener: fn => listeners.add(fn), emit: (...args) => listeners.forEach(fn => fn(...args)) };
@@ -30,12 +30,26 @@ export function createDemoApi({ savedDataStore } = {}) {
   let nextId = 7;
   const closed = [];
   const clone = value => structuredClone(value);
+  const synced = {};
+  const storageChanged = event();
   const storage = store => ({
-    remove: async key => { delete store[key]; },
-    get: async key => ({ [key]: clone(store === local && key === 'data' ? savedDataStore?.get() ?? store[key] : store[key]) }),
+    remove: async keys => {
+      const next = store === synced ? syncStore?.get() ?? store : store;
+      for (const key of Array.isArray(keys) ? keys : [keys]) delete next[key];
+      if (store === synced) { Object.assign(store, next); syncStore?.set(clone(next)); storageChanged.emit({}, 'sync'); }
+    },
+    get: async key => {
+      const source = store === synced ? syncStore?.get() ?? store : store;
+      if (key == null) return clone(source);
+      return { [key]: clone(store === local && key === 'data' ? savedDataStore?.get() ?? store[key]
+        : store === local && ['syncPrefs', 'syncBackup'].includes(key) ? savedStateStore?.get()?.[key] ?? store[key] : source[key]) };
+    },
     set: async values => {
       Object.assign(store, clone(values));
       if (store === local && values.data) savedDataStore?.set(clone(values.data));
+      if (store === local && ('syncPrefs' in values || 'syncBackup' in values)) savedStateStore?.set({ ...savedStateStore.get(),
+        ...Object.fromEntries(Object.entries(values).filter(([key]) => ['syncPrefs', 'syncBackup'].includes(key))) });
+      if (store === synced) { syncStore?.set({ ...syncStore.get(), ...clone(values) }); storageChanged.emit(values, 'sync'); }
     }
   });
   const find = id => {
@@ -57,7 +71,7 @@ export function createDemoApi({ savedDataStore } = {}) {
     Object.assign(tab, entry);
   };
   const api = {
-    storage: { local: storage(local), session: storage(session) },
+    storage: { onChanged: storageChanged, local: storage(local), sync: storage(synced), session: storage(session) },
     tabs: {
       onCreated: created, onRemoved: removed,
       query: async ({ windowId } = {}) => clone(tabs.filter(tab => windowId === undefined || tab.windowId === windowId)),

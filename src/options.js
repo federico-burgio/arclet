@@ -1,3 +1,5 @@
+import { syncUsage, syncStatus } from './sync-ui.js';
+import { capacityMessage } from './sync-format.js';
 import { icon } from './icons.js';
 import { connect } from './platform.js';
 import { MAX_TRANSFER_BYTES } from './transfer.js';
@@ -14,6 +16,8 @@ let state;
 let revision = 0;
 let refreshTimer;
 let importDraft;
+let syncReview;
+let reviewingSync = false;
 const darkMode = matchMedia('(prefers-color-scheme: dark)');
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 $('#settings-shortcut').textContent = $('#help-search-shortcut').textContent = isMac ? '⌘ K' : 'Ctrl K';
@@ -76,6 +80,7 @@ function applyState(next) {
   $('#show-favorite-labels').checked = state.showFavoriteLabels;
   $('#favorites-per-row').value = String(state.favoritesPerRow);
   $('#font-size').value = String(state.fontScale);
+  renderSync();
 }
 async function refresh() {
   const ticket = ++revision;
@@ -100,6 +105,79 @@ async function command(type, payload) {
   }
 }
 darkMode.addEventListener('change', applyTheme);
+
+function renderSync() {
+  const sync = state.sync;
+  $('#chrome-sync').checked = sync.enabled;
+  $('#chrome-sync').disabled = !sync.available;
+  $('#sync-usage').textContent = syncUsage(sync);
+  $('#sync-meter').value = Math.min(sync.used, sync.limit);
+  $('#sync-status').textContent = syncStatus(sync);
+  $('#sync-capacity-help').textContent = sync.available ? capacityMessage(sync) : 'Chrome Sync storage is unavailable. Everything remains local.';
+  $('#review-sync').disabled = !sync.available;
+  $('#review-sync').textContent = sync.conflict ? 'Review configurations' : sync.enabled ? 'Review Sync' : 'Check eligibility';
+  $('#retry-sync').hidden = !sync.enabled || !sync.error || sync.conflict;
+  $('#export-sync-backup').hidden = !sync.hasLocalCopy;
+}
+async function reviewSync() {
+  if (reviewingSync) return;
+  reviewingSync = true;
+  const button = $('#review-sync');
+  button.disabled = true;
+  $('#settings-error').hidden = true;
+  try {
+    const next = await platform.request('ASSESS_SYNC');
+    applyState(next);
+    syncReview = next.syncAssessment;
+    $('#sync-review-title').textContent = next.sync.enabled ? 'Review Chrome Sync' : 'Enable Chrome Sync?';
+    $('#sync-review-usage').textContent = syncUsage(syncReview);
+    $('#sync-review-message').textContent = syncReview.message + (syncReview.incomplete ? ' Chrome’s copy is incomplete. Wait and check again, or explicitly continue to replace it with this device’s complete configuration.' : '');
+    $('#sync-review-choices').hidden = !syncReview.remote;
+    document.querySelector('[name="sync-source"][value="local"]').checked = true;
+    if (syncReview.remote) {
+      const cloud = syncReview.remote;
+      $('#sync-remote-summary').textContent = `Chrome has ${cloud.spaces} spaces, ${cloud.pins} pinned pages, ${cloud.favorites} favorites, and ${cloud.folders} folders. Choose which configuration to use.`;
+    }
+    $('#confirm-sync').disabled = !syncReview.fits;
+    $('#confirm-sync').textContent = next.sync.enabled ? 'Use selected configuration' : 'Enable Sync';
+    $('#sync-review-error').hidden = true;
+    $('#sync-review-dialog').showModal();
+  } catch (error) { toast(error.message, true); }
+  finally { reviewingSync = false; button.disabled = !state?.sync.available; }
+}
+$('#review-sync').addEventListener('click', reviewSync);
+$('#chrome-sync').addEventListener('change', event => {
+  const wanted = event.currentTarget.checked;
+  event.currentTarget.checked = state.sync.enabled;
+  if (wanted) reviewSync();
+  else { $('#sync-disable-dialog').returnValue = 'cancel'; $('#sync-disable-dialog').showModal(); }
+});
+$('#confirm-sync').addEventListener('click', async () => {
+  if (!syncReview) return;
+  $('#confirm-sync').disabled = true;
+  try {
+    const source = syncReview.remote ? document.querySelector('[name="sync-source"]:checked').value : 'local';
+    applyState(await platform.request('ENABLE_SYNC', { token: syncReview.token, source }));
+    $('#sync-review-dialog').close();
+    toast('Chrome Sync enabled on this device');
+  } catch (error) {
+    $('#sync-review-error').textContent = error.message;
+    $('#sync-review-error').hidden = false;
+  } finally { $('#confirm-sync').disabled = !syncReview?.fits; }
+});
+$('#sync-review-dialog').addEventListener('close', () => { syncReview = null; });
+$('#sync-disable-dialog').addEventListener('close', () => {
+  if ($('#sync-disable-dialog').returnValue === 'disable') command('DISABLE_SYNC', { confirmed: true });
+});
+$('#retry-sync').addEventListener('click', () => command('RETRY_SYNC', {}));
+$('#export-sync-backup').addEventListener('click', async () => {
+  try {
+    const result = await platform.request('EXPORT_SYNC_BACKUP');
+    const url = URL.createObjectURL(new Blob([JSON.stringify(result.exportDocument, null, 2)], { type: 'application/json' }));
+    const link = make('a'); link.href = url; link.download = 'arclet-recovery-copy.json'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (error) { toast(error.message, true); }
+});
 
 $('#choose-import').addEventListener('click', () => {
   $('#import-file').value = '';

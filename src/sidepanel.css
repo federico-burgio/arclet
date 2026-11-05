@@ -54,10 +54,9 @@
   .content-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent; padding: 10px 8px 14px; }
   .divider { height: 1px; background: var(--line); margin: 19px 6px 10px; }
   footer { flex-shrink: 0; }
-  .footer-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 28px; align-items: start; gap: 5px; min-height: 42px; }
+  .footer-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 5px; min-height: 42px; }
   .spaces-bar { grid-column: 1; display: flex; align-items: center; justify-content: flex-start; min-width: 0; gap: 5px; }
-  .footer-toolbar > .icon-button { margin-top: 6px; }
-  .footer-toolbar > #settings-button { grid-column: 2; justify-self: end; }
+  .footer-actions { grid-column: 2; display: flex; align-items: center; gap: 5px; padding-top: 6px; }
   .spaces { display: flex; gap: 4px; align-items: start; overflow-x: auto; scrollbar-width: none; padding: 0 10px 0 0; }
   .spaces-divider { width: 1px; height: 19px; flex-shrink: 0; background: var(--line); margin: 0 4px; }
 }
@@ -273,3 +272,12 @@
   @media (max-height: 560px) { .favorites-section { padding-top: 12px; padding-bottom: 10px; } }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 }
+
+/* Storage capacity is shown only while optional Sync is near its working limit. */
+.sync-capacity-button { color: var(--muted); }
+.sync-ring-track { stroke: var(--line); }
+#sync-ring-progress { stroke: currentColor; stroke-linecap: round; }
+.sync-capacity-popover { position: fixed; inset: auto max(14px, calc((100vw - 532px) / 2)) 64px auto; margin: 0; width: min(300px, calc(100vw - 28px)); padding: 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); box-shadow: var(--shadow); font-size: .846154rem; line-height: 1.6; }
+.sync-capacity-popover h2 { font-size: 1rem; margin-bottom: 8px; }
+.sync-capacity-popover p { margin-bottom: 10px; color: var(--muted); }
+.sync-capacity-popover .sync-popover-usage { font-weight: 650; color: var(--text); }

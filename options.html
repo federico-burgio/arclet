@@ -18,10 +18,11 @@
    <div class="settings-tabs" role="tablist" aria-label="Settings sections" aria-orientation="vertical">
     <button type="button" role="tab" id="tab-appearance" aria-controls="appearance" aria-selected="true" tabindex="0"><span data-icon="paintbrush"></span>Appearance</button>
     <button type="button" role="tab" id="tab-sidebar" aria-controls="sidebar" aria-selected="false" tabindex="-1"><span data-icon="panel-left"></span>Sidebar</button>
+    <button type="button" role="tab" id="tab-sync" aria-controls="sync" aria-selected="false" tabindex="-1"><span data-icon="cloud"></span>Sync</button>
     <button type="button" role="tab" id="tab-import-export" aria-controls="import-export" aria-selected="false" tabindex="-1"><span data-icon="arrow-left-right"></span>Import &amp; export</button>
     <button type="button" role="tab" id="tab-about" aria-controls="about" aria-selected="false" tabindex="-1"><span data-icon="circle-question-mark"></span>Help &amp; about</button>
    </div>
-   <p class="settings-nav-note">Settings<br><span data-version>Arclet 0.16.2</span></p>
+   <p class="settings-nav-note">Settings<br><span data-version>Arclet 0.17.0</span></p>
   </aside>
   <main class="settings-main">
    <p id="preview-note" class="preview-note" hidden>Preview mode · sample data, separate from your extension</p>
@@ -77,6 +78,25 @@
       </div>
       <p class="settings-hint">Search stays available with <span id="settings-shortcut">⌘ K</span> while the sidebar has focus.</p>
    </section>
+   <section id="sync" role="tabpanel" aria-labelledby="tab-sync" hidden>
+    <h1>Sync</h1>
+    <p class="settings-subtitle">Keep your saved sidebar available across Chrome devices.</p>
+    <div class="settings-card sync-card">
+      <div class="settings-toggle">
+        <div><label for="chrome-sync">Chrome Sync</label><p id="chrome-sync-help">Optional. Sync spaces, favorites, pinned pages, folders, icons, and appearance. Live tabs and browsing history stay local.</p></div>
+        <input id="chrome-sync" type="checkbox" role="switch" aria-describedby="chrome-sync-help">
+      </div>
+      <div class="sync-capacity">
+        <div class="sync-usage-row"><strong>Configuration storage</strong><span id="sync-usage"></span></div>
+        <progress id="sync-meter" max="81920" value="0" aria-label="Chrome Sync storage usage"></progress>
+        <p id="sync-status" role="status"></p>
+        <p id="sync-capacity-help"></p>
+        <div class="sync-buttons"><button id="review-sync" type="button" class="secondary-button">Check eligibility</button><button id="retry-sync" type="button" class="text-button" hidden>Retry Sync</button><button id="export-sync-backup" type="button" class="text-button" hidden>Download recovery copy</button></div>
+      </div>
+    </div>
+    <p class="settings-hint">Chrome Sync must be enabled in Chrome on each device, using the same Google account and Arclet extension. Arclet cannot verify Chrome’s account or Sync settings. Offline changes stay on this device until Chrome can deliver them.</p>
+    <p class="settings-hint">Arclet uses an 80 KB working limit. At 80% usage, a storage ring appears beside Settings in the sidebar. To save a configuration larger than the limit, explicitly disable Sync first. Disabling it keeps your local configuration and does not turn it off on other devices.</p>
+   </section>
    <section id="import-export" role="tabpanel" aria-labelledby="tab-import-export" hidden>
     <h1>Import &amp; export</h1>
     <p class="settings-subtitle">Move your saved sidebar between installations.</p>
@@ -95,16 +115,33 @@
       <div class="settings-detail"><span data-icon="keyboard"></span><div><strong>Find anything</strong><p><span id="help-search-shortcut">⌘ K</span> while the sidebar has focus.</p><p>Open the sidebar with <span id="panel-shortcut">⌘ ⇧ E</span>.</p></div></div>
       <div class="settings-detail"><span data-icon="move"></span><div><strong>Everything in its place</strong><p>Drag a tab to reorder it or move it to a space. Right-click a space or New tab to create a pinned folder or restore a closed tab. Right-click saved pages to customize icons, organize pins, or add favorites. Drag pins and folder headings to reorder them. Drop pins onto a folder’s center to file them, or near its edges to place them beside it. Use Alt+↑ / Alt+↓ to reorder with the keyboard. Drag favorites to rearrange them, or use Alt+← / Alt+→. Open-tab menus can close all tabs or all tabs below.</p></div></div>
       <div class="settings-detail"><span data-icon="corner-up-left"></span><div><strong>Saved tabs stay yours</strong><p>A return arrow means browsing away from the saved URL. Home and closed items have no status badge; hover for their state and current address. Click an open item to resume its current page. Closing a pinned tab keeps the pin; reopen it to start at home. Right-click for Return to saved URL, Unpin page, or Remove favorite.</p></div></div>
-      <div class="settings-detail"><span data-icon="shield"></span><div><strong>Just you and your tabs</strong><p>Saved pages and spaces stay on this device. No account, analytics, or external services.</p></div></div>
+      <div class="settings-detail"><span data-icon="shield"></span><div><strong>Just you and your tabs</strong><p>Saved pages and spaces stay on this device unless you enable optional Chrome Sync. Sync uses your Chrome account; Arclet has no account system, analytics, or backend.</p></div></div>
       <p class="fine-print">For a left sidebar, choose Left in Chrome’s side panel appearance settings. Chrome’s tab strip stays visible. Tabs return to their spaces when Chrome restores your previous session. Enable “Continue where you left off” in Chrome’s startup settings.</p>
       <p class="fine-print">Outline icons by Lucide, bundled on this device. ISC / MIT licenses included.</p>
       <p class="transfer-links about-links"><a href="https://github.com/federico-burgio/arclet" target="_blank" rel="noopener noreferrer">GitHub</a> · <a href="https://github.com/federico-burgio/arclet/releases" target="_blank" rel="noopener noreferrer">Releases</a></p>
-      <div class="settings-brand"><img class="brand-mark" src="icons/mark.svg" alt="" width="32" height="32"><div>Arclet <span data-version-number>0.16.2</span><p>Inspired by Arc. Independently made.</p></div></div>
+      <div class="settings-brand"><img class="brand-mark" src="icons/mark.svg" alt="" width="32" height="32"><div>Arclet <span data-version-number>0.17.0</span><p>Inspired by Arc. Independently made.</p></div></div>
 
    </section>
    <p id="save-status" class="save-status" role="status" aria-live="polite"><span data-icon="check"></span><span id="save-status-text">Loading settings…</span></p>
   </main>
  </div>
+    <dialog id="sync-review-dialog" class="sheet" aria-labelledby="sync-review-title">
+      <div class="sheet-header"><h2 id="sync-review-title">Enable Chrome Sync?</h2><button type="button" class="icon-button" data-close="sync-review-dialog" aria-label="Close Sync review" data-icon="close"></button></div>
+      <p id="sync-review-usage" class="sheet-description"></p>
+      <p id="sync-review-message" class="sync-review-message" role="status"></p>
+      <div id="sync-review-choices" hidden>
+        <p id="sync-remote-summary" class="fine-print"></p>
+        <label class="sync-choice"><input type="radio" name="sync-source" value="local" checked>Use this device’s configuration</label>
+        <label class="sync-choice"><input type="radio" name="sync-source" value="remote">Use the configuration in Chrome</label>
+        <p class="fine-print">The chosen configuration can replace the copy on other syncing devices. A recovery copy of the configuration being replaced is kept on this device.</p>
+      </div>
+      <p class="fine-print">Enabling Sync stores your saved URLs, titles, folders, and preferences in Chrome Sync, which can send them to Google and your other signed-in Chrome devices. No live tabs, browsing history, cookies, or passwords are included.</p>
+      <p id="sync-review-error" class="fine-print danger" role="alert" hidden></p>
+      <div class="sheet-actions"><button type="button" class="text-button" data-close="sync-review-dialog">Cancel</button><button id="confirm-sync" type="button" class="primary-button">Enable Sync</button></div>
+    </dialog>
+    <dialog id="sync-disable-dialog" class="sheet" aria-labelledby="sync-disable-title">
+      <form method="dialog"><h2 id="sync-disable-title">Disable Sync on this device?</h2><p class="sheet-description">Your configuration stays on this device. Future changes will be local, including configurations over 80 KB. Other devices and the copy already in Chrome are unchanged.</p><div class="sheet-actions"><button type="submit" value="cancel" class="text-button" autofocus>Keep Sync on</button><button type="submit" value="disable" class="primary-button">Disable Sync</button></div></form>
+    </dialog>
     <dialog id="import-dialog" class="sheet" aria-labelledby="import-title">
       <div class="sheet-header"><h2 id="import-title">Import into Arclet</h2><button type="button" class="icon-button" data-close="import-dialog" aria-label="Cancel import" data-icon="close"></button></div>
       <p id="import-filename" class="sheet-description"></p>

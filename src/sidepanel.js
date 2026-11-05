@@ -1,3 +1,4 @@
+import { syncPercent, syncUsage, syncStatus } from './sync-ui.js';
 import { COLORS, DEFAULT_SPACE_COLOR, matchingTabs, openTabsForSpace, pageLabel } from './model.js';
 import { icon } from './icons.js';
 import { connect } from './platform.js';
@@ -183,6 +184,7 @@ function applyState(next) {
     if (toolbar.contains(focused)) focused.focus({ preventScroll: true });
   }
   updatePageActions();
+  renderSyncCapacity();
   const space = state.spaces.find(space => space.id === state.spaceId);
   $('#space-name').textContent = space.name;
   document.title = `${space.name} — Arclet`;
@@ -240,6 +242,22 @@ function saveCurrent(kind) {
   if (!tab) { toast('Open a page first.', true); return; }
   return command('SAVE_PAGE', { kind, tabId: tab.id }, kind === 'favorite' ? 'Added to your favorites.' : 'Pinned to this space.');
 }
+
+function renderSyncCapacity() {
+  const sync = state.sync;
+  const button = $('#sync-capacity-button');
+  button.hidden = !sync.enabled || sync.ratio < .8;
+  if (button.hidden) $('#sync-capacity-popover').hidePopover();
+  button.setAttribute('aria-label', `Chrome Sync storage: ${syncPercent(sync)}% of the 80 KB limit`);
+  button.title = `Chrome Sync: ${syncUsage(sync)}`;
+  $('#sync-ring-progress').style.strokeDasharray = `${Math.min(100, sync.ratio * 100)} 100`;
+  $('#sync-popover-usage').textContent = syncUsage(sync);
+  $('#sync-popover-status').textContent = syncStatus(sync);
+}
+$('#manage-sync').addEventListener('click', async () => {
+  $('#sync-capacity-popover').hidePopover();
+  try { await platform.openOptions('sync'); } catch (error) { toast(error.message, true); }
+});
 
 function renderFavorites() {
   const grid = $('#favorites');

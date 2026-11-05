@@ -9,8 +9,8 @@ const runtime = { id: 'arclet-test', getURL: path => `chrome-extension://arclet-
 const sender = path => ({ id: runtime.id, url: runtime.getURL(path) });
 
 test('settings with section hashes can read and change preferences, import, and export', () => {
-  for (const path of ['options.html', 'options.html#appearance', 'options.html#sidebar', 'options.html#import-export', 'options.html#about']) {
-    for (const type of ['GET_STATE', 'SET_THEME', 'SET_BACKGROUND_COLOR', 'SET_FONT_SCALE', 'SET_FAVORITES_PER_ROW', 'SET_SEARCH_VISIBILITY', 'SET_PAGE_CONTROLS_POSITION', 'SET_FAVORITE_LABELS', 'PREVIEW_IMPORT', 'IMPORT_DATA', 'EXPORT_DATA']) {
+  for (const path of ['options.html', 'options.html#appearance', 'options.html#sidebar', 'options.html#sync', 'options.html#import-export', 'options.html#about']) {
+    for (const type of ['ASSESS_SYNC', 'ENABLE_SYNC', 'DISABLE_SYNC', 'RETRY_SYNC', 'EXPORT_SYNC_BACKUP', 'GET_STATE', 'SET_THEME', 'SET_BACKGROUND_COLOR', 'SET_FONT_SCALE', 'SET_FAVORITES_PER_ROW', 'SET_SEARCH_VISIBILITY', 'SET_PAGE_CONTROLS_POSITION', 'SET_FAVORITE_LABELS', 'PREVIEW_IMPORT', 'IMPORT_DATA', 'EXPORT_DATA']) {
       assert.equal(canHandleMessage(runtime, { type }, sender(path)), true, `${path}: ${type}`);
     }
   }
@@ -103,4 +103,21 @@ test('saved tabs can close before sessions access exists and restore works after
   await assert.rejects(browser.run('RESTORE_TAB'), /Allow recently closed/);
   browser.api.sessions = sessions;
   assert.equal((await browser.run('RESTORE_TAB')).tabs.length, 1);
+});
+
+test('capacity popover can open native options directly at the Sync section', async () => {
+  const previous = globalThis.chrome;
+  const calls = [];
+  globalThis.chrome = {
+    windows: { getCurrent: async () => ({ id: 1 }) },
+    runtime: { id: 'arclet-test', getURL: path => `chrome-extension://arclet-test/${path}`,
+      openOptionsPage: async () => { calls.push('open'); } },
+    tabs: { query: async value => { calls.push(value); return [{ id: 42 }]; },
+      update: async (id, change) => { calls.push({ id, change }); } }
+  };
+  try {
+    await (await connect()).openOptions('sync');
+    assert.deepEqual(calls, ['open', { url: 'chrome-extension://arclet-test/options.html' },
+      { id: 42, change: { url: 'chrome-extension://arclet-test/options.html#sync' } }]);
+  } finally { if (previous === undefined) delete globalThis.chrome; else globalThis.chrome = previous; }
 });

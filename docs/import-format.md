@@ -104,7 +104,7 @@ All settings are optional. They are validated when present, but applied **only i
 
 **Export JSON** downloads the same version 1 format with all spaces, favorites, pinned pages, folders, ordering, colors, custom icons, folder collapse state, and appearance settings. Its output can be imported by Arclet or used by external conversion tools.
 
-Chrome's live tabs, tab/window IDs, selected space in each window, tab recovery checkpoint, history, cookies, passwords, and accounts are not exported. Parsing, merging, and export generation happen locally.
+Chrome's live tabs, tab/window IDs, selected space in each window, tab recovery checkpoint, history, cookies, passwords, accounts, and device-specific Sync preference/state are not exported. Parsing, merging, and export generation happen locally. Import does not enable Sync. If Sync is already enabled, the merged configuration must also fit its 80 KiB working limit and will be queued for Chrome Sync after it is saved locally.
 
 If existing spaces have duplicate names, export gives subsequent occurrences unique names such as `Work (2)`, shortening the base name to stay within the limit. The same rule applies to duplicate folder names within a space. This preserves separate groups in a portable file without modifying the original sidebar. Renaming those groups in Arclet before exporting is preferable if you plan to merge the file back into the same sidebar.
 

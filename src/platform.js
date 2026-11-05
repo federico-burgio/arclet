@@ -3,7 +3,13 @@ export async function connect() {
     const window = await chrome.windows.getCurrent();
     return {
       demo: false,
-      openOptions: () => chrome.runtime.openOptionsPage(),
+      async openOptions(section) {
+        await chrome.runtime.openOptionsPage();
+        if (section) {
+          const tabs = await chrome.tabs.query({ url: chrome.runtime.getURL('options.html') });
+          if (tabs[0]) await chrome.tabs.update(tabs[0].id, { url: `${chrome.runtime.getURL('options.html')}#${section}` });
+        }
+      },
       async request(type, payload = {}) {
         // Request directly from the menu click, before any asynchronous work can
         // consume Chrome's user gesture. Already-granted access prompts no more.
@@ -32,17 +38,27 @@ export async function connect() {
     const channel = new BroadcastChannel('arclet-preview');
     const emit = () => listeners.forEach(listener => listener());
     const notify = () => { emit(); channel.postMessage('STATE_CHANGED'); };
-    channel.addEventListener('message', emit);
+
     const api = createDemoApi({ savedDataStore: {
       get: () => JSON.parse(localStorage.getItem('arclet-preview-data') || 'null'),
       set: data => localStorage.setItem('arclet-preview-data', JSON.stringify(data))
-    } });
+    }, savedStateStore: { get: () => JSON.parse(localStorage.getItem('arclet-preview-sync-local') || '{}'),
+      set: value => localStorage.setItem('arclet-preview-sync-local', JSON.stringify(value)) },
+    syncStore: { get: () => JSON.parse(localStorage.getItem('arclet-preview-sync') || '{}'),
+      set: value => localStorage.setItem('arclet-preview-sync', JSON.stringify(value)) } });
     const controller = createController(api, notify);
+    channel.addEventListener('message', event => {
+      if (event.data === 'SYNC_CHANGED') controller.syncChanged().catch(() => {});
+      else emit();
+    });
+    api.storage.onChanged.addListener((_changes, area) => {
+      if (area === 'sync') { channel.postMessage('SYNC_CHANGED'); controller.syncChanged().catch(() => {}); }
+    });
     api.tabs.onCreated.addListener(tab => controller.tabCreated(tab));
     api.tabs.onRemoved.addListener(id => controller.tabRemoved(id));
     return { demo: true,
-      openOptions() {
-        const page = window.open('options.html?demo=1', 'arclet-options');
+      openOptions(section) {
+        const page = window.open(`options.html?demo=1${section ? `#${section}` : ''}`, 'arclet-options');
         if (!page) throw new Error('Allow this preview to open the settings tab.');
         page.focus();
       },

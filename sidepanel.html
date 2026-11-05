@@ -49,12 +49,22 @@
         <footer>
           <div class="footer-toolbar">
             <nav class="spaces-bar" aria-label="Spaces"><div id="spaces" class="spaces"></div><span class="spaces-divider"></span><button id="add-space" class="icon-button" title="Create a space" aria-label="Create a space" data-icon="plus"></button></nav>
-            <button id="settings-button" class="icon-button" title="Settings" aria-label="Settings" data-icon="sliders"></button>
+            <div class="footer-actions">
+              <button id="sync-capacity-button" class="icon-button sync-capacity-button" type="button" popovertarget="sync-capacity-popover" aria-haspopup="dialog" aria-label="Chrome Sync storage usage" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="sync-ring-track" cx="12" cy="12" r="9" fill="none" stroke-width="3"/><circle id="sync-ring-progress" cx="12" cy="12" r="9" fill="none" stroke-width="3" pathLength="100" transform="rotate(-90 12 12)"/></svg></button>
+              <button id="settings-button" class="icon-button" title="Settings" aria-label="Settings" data-icon="sliders"></button>
+            </div>
           </div>
         </footer>
       </section>
     </main>
 
+    <div id="sync-capacity-popover" class="sync-capacity-popover" popover="auto" role="dialog" aria-labelledby="sync-popover-title">
+      <h2 id="sync-popover-title">Chrome Sync storage</h2>
+      <p id="sync-popover-usage" class="sync-popover-usage"></p>
+      <p>You’re nearing the 80 KB Sync limit. To save a larger configuration, explicitly disable Sync in Settings first. Your configuration will stay on this device.</p>
+      <p id="sync-popover-status"></p>
+      <button id="manage-sync" type="button" class="text-button">Manage Sync</button>
+    </div>
     <dialog id="search-dialog" class="search-dialog" aria-label="Search tabs or open a page">
       <form id="search-form" autocomplete="off">
         <div class="command-input"><span data-icon="search"></span><input id="search-input" type="text" placeholder="Where would you like to go?" aria-label="Search tabs or enter a URL" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-controls="search-results"><button type="button" class="escape" id="close-search" aria-label="Close search">esc</button></div>

@@ -1,3 +1,5 @@
+import { createChromeSync } from './chrome-sync.js';
+import { assessSync, capacityMessage } from './sync-format.js';
 import { savedHome, observeSavedNavigation } from './saved-home.js';
 import { COLORS, MAX_FAVORITES_PER_ROW, FONT_SCALES, destination, safeSavedUrl, iconAppearance, openTabsForSpace } from './model.js';
 import { preparePersistence, reconcileWorkspace, forgetTab, boundWorkspace } from './persistence.js';
@@ -12,6 +14,13 @@ export function createController(api, notify = () => {}, { apiTimeoutMs = 10000 
   api = boundedApi(api, apiTimeoutMs);
   let tail = Promise.resolve();
   let ownedTabs;
+  let syncTimer;
+  const scheduleSync = () => {
+    if (syncTimer) return;
+    syncTimer = setTimeout(() => { syncTimer = null; return queue(() => chromeSync.flush()).catch(console.error); }, 5000);
+    syncTimer.unref?.();
+  };
+  const chromeSync = createChromeSync(api, { load, save: state => save(state), synchronize, notify });
   const queue = task => {
     const result = tail.then(task);
     tail = result.catch(() => {});
@@ -19,13 +28,17 @@ export function createController(api, notify = () => {}, { apiTimeoutMs = 10000 
   };
 
   async function load() {
-    const [local, checkpoint, session] = await Promise.all([
-      api.storage.local.get('data'), api.storage.local.get('workspace'), api.storage.session.get('live')
+    const [local, checkpoint, session, sync, backup] = await Promise.all([
+      api.storage.local.get('data'), api.storage.local.get('workspace'), api.storage.session.get('live'),
+      api.storage.local.get('syncPrefs'), api.storage.local.get('syncBackup')
     ]);
     const data = normalizeStoredData(local.data);
     const live = session.live ?? { tabSpaces: {}, windowSpaces: {} };
     const state = { data, live, workspace: checkpoint.workspace ?? { version: 1, windows: [] } };
     state.persistedData = JSON.stringify(local.data);
+    state.syncPrefs = { ...sync.syncPrefs, enabled: sync.syncPrefs?.enabled === true };
+    state.persistedSyncPrefs = JSON.stringify(state.syncPrefs);
+    state.syncBackup = backup.syncBackup;
     boundWorkspace(state.workspace);
     preparePersistence(state);
     return state;
@@ -35,16 +48,28 @@ export function createController(api, notify = () => {}, { apiTimeoutMs = 10000 
     const { data, live, workspace } = state;
     normalizePinnedOrder(data);
     const serialized = JSON.stringify(data);
-    if (serialized !== state.persistedData) {
-      try { await api.storage.local.set({ data }); }
+    const changed = serialized !== state.persistedData;
+    if (changed && state.syncPrefs.enabled && !state.fromSync) {
+      const assessment = assessSync(data);
+      if (!assessment.fits) throw new Error(capacityMessage(assessment));
+      state.syncPrefs.pending = true;
+    }
+    const values = { ...(changed ? { data } : {}),
+      ...(JSON.stringify(state.syncPrefs) !== state.persistedSyncPrefs ? { syncPrefs: state.syncPrefs } : {}),
+      ...(state.backupChanged ? { syncBackup: state.syncBackup } : {}) };
+    if (Object.keys(values).length) {
+      try { await api.storage.local.set(values); }
       catch (error) {
         if (!/quota/i.test(error.message)) throw error;
         // An older, unbounded checkpoint must not prevent saving preferences.
         await api.storage.local.remove('workspace');
-        await api.storage.local.set({ data });
+        await api.storage.local.set(values);
       }
       state.persistedData = serialized;
     }
+    state.persistedSyncPrefs = JSON.stringify(state.syncPrefs);
+    state.backupChanged = false;
+    if (state.syncPrefs.enabled && state.syncPrefs.pending && !state.syncPrefs.conflict && !state.syncPrefs.error) scheduleSync();
     await api.storage.session.set({ live });
     // Recovery is best effort. A failed checkpoint must never hide saved pages.
     await api.storage.local.set({ workspace }).catch(() => {});
@@ -84,7 +109,10 @@ export function createController(api, notify = () => {}, { apiTimeoutMs = 10000 
     const { data, live } = state;
     const tabs = state.tabs.filter(tab => tab.windowId === windowId);
     const spaceId = selectedSpace(data, live, windowId);
-    return { ...data, spaceId, tabs: tabs.map(tab => ({ ...tab, spaceId: live.tabSpaces[tab.id], savedPageId: live.pageOwners[tab.id] ?? null, ...(savedHome(state, tab.id) ? { savedHome: savedHome(state, tab.id) } : {}) })) };
+    return { ...data, spaceId, sync: { ...assessSync(data), enabled: !!state.syncPrefs.enabled,
+      available: chromeSync.available(), pending: !!state.syncPrefs.pending, error: state.syncPrefs.error ?? null,
+      conflict: !!state.syncPrefs.conflict, updatedAt: state.syncPrefs.updatedAt ?? null,
+      hasLocalCopy: !!state.syncBackup }, tabs: tabs.map(tab => ({ ...tab, spaceId: live.tabSpaces[tab.id], savedPageId: live.pageOwners[tab.id] ?? null, ...(savedHome(state, tab.id) ? { savedHome: savedHome(state, tab.id) } : {}) })) };
   }
 
   async function rememberClosed(state, id) {
@@ -137,12 +165,32 @@ export function createController(api, notify = () => {}, { apiTimeoutMs = 10000 
     }
 
     switch (type) {
+      case 'ASSESS_SYNC': {
+        const { cloud, ...syncAssessment } = await chromeSync.assessment(state);
+        return { ...getState(windowId, state), syncAssessment };
+      }
+      case 'ENABLE_SYNC':
+        await chromeSync.enable(state, payload);
+        break;
+      case 'DISABLE_SYNC':
+        if (payload.confirmed !== true) throw new Error('Confirm that you want to disable Sync on this device.');
+        state.syncPrefs = { ...state.syncPrefs, enabled: false, pending: false, conflict: false, error: null };
+        clearTimeout(syncTimer);
+        syncTimer = null;
+        break;
+      case 'RETRY_SYNC':
+        await chromeSync.pull(state);
+        break;
+      case 'EXPORT_SYNC_BACKUP':
+        if (!state.syncBackup) throw new Error('No previous local copy is available.');
+        return { ...getState(windowId, state), exportDocument: exportData(state.syncBackup.data) };
       case 'EXPORT_DATA':
         return { ...getState(windowId, state), exportDocument: exportData(data) };
       case 'PREVIEW_IMPORT': {
         const plan = planImport(data, payload.document);
         // Report a merged result that would exceed the limits before the user confirms.
         assertBackup(JSON.stringify(data), plan.data, true);
+        if (state.syncPrefs.enabled && !assessSync(plan.data).fits) throw new Error(capacityMessage(assessSync(plan.data)));
         return { ...getState(windowId, state), importPreview: { ...plan.summary, token: await importToken(data) } };
       }
       case 'IMPORT_DATA': {
@@ -462,9 +510,13 @@ export function createController(api, notify = () => {}, { apiTimeoutMs = 10000 
     initialize: () => queue(async () => {
       const state = await load();
       await synchronize(state);
+      await chromeSync.pull(state);
+      await synchronize(state);
       await save(state);
       notify();
     }),
+    syncChanged: () => queue(() => chromeSync.receive()),
+    flushSync: () => queue(() => chromeSync.flush()),
     dispatch: message => queue(() => run(message)),
     navigationEvent: (type, event) => queue(async () => {
       if (event.frameId !== 0 || (ownedTabs && !ownedTabs.has(event.tabId))) return;

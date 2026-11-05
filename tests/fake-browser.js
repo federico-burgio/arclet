@@ -1,7 +1,7 @@
 import { defaultData } from '../src/model.js';
 import { createController } from '../src/controller.js';
 
-export function fakeBrowser(initial = []) {
+export function fakeBrowser(initial = [], { syncStore = {} } = {}) {
   const clone = value => structuredClone(value);
   const local = { data: defaultData() };
   let session = {};
@@ -10,14 +10,14 @@ export function fakeBrowser(initial = []) {
   const closed = [];
   const reloaded = [];
   const navigated = [];
-  const storage = store => ({ get: async key => ({ [key]: clone(store()[key]) }), set: async values => Object.assign(store(), clone(values)), remove: async key => { delete store()[key]; } });
+  const storage = store => ({ get: async key => key == null ? clone(store()) : ({ [key]: clone(store()[key]) }), set: async values => Object.assign(store(), clone(values)), remove: async keys => { for (const key of Array.isArray(keys) ? keys : [keys]) delete store()[key]; } });
   const find = id => { const tab = current.find(tab => tab.id === id); if (!tab) throw new Error('No such tab'); return tab; };
   const reindex = () => {
     const indices = {};
     current.forEach(tab => { tab.index = indices[tab.windowId] ?? 0; indices[tab.windowId] = tab.index + 1; });
   };
   const api = {
-    storage: { local: storage(() => local), session: storage(() => session) },
+    storage: { local: storage(() => local), sync: storage(() => syncStore), session: storage(() => session) },
     tabs: {
       query: async ({ windowId } = {}) => clone(current.filter(tab => windowId === undefined || tab.windowId === windowId)),
       get: async id => clone(find(id)),
@@ -65,7 +65,7 @@ export function fakeBrowser(initial = []) {
   };
   let controller = createController(api);
   return {
-    api, local, reloaded, navigated, get live() { return session.live; }, get controller() { return controller; },
+    api, local, syncStore, reloaded, navigated, get live() { return session.live; }, get controller() { return controller; },
     run: (type = 'GET_STATE', payload = {}, windowId = 1) => controller.dispatch({ type, payload, windowId }),
     setTabs: tabs => { current = clone(tabs); },
     change: (id, values) => Object.assign(find(id), clone(values)),

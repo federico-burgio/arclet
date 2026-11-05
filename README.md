@@ -28,7 +28,7 @@ The default shortcut is **⌘ Shift E** on macOS or **Ctrl Shift E** elsewhere. 
 - **Clear regular tabs:** the broom button at the right of the **New tab** row closes regular tabs in the selected space and current window. Chrome-pinned tabs, Arclet pinned pages, favorites, and tabs in other spaces/windows stay open. The button is disabled when there is nothing eligible to close. Closed tabs can be restored as usual.
 - **Current-page actions:** **Back → Forward → Refresh → Copy URL** sit immediately before the search field. They act on the active Chrome tab in the sidebar’s window, including when its page is saved or a different space is selected. Back and Forward use that tab’s own browser history and report when no previous or next page exists. Copy URL writes the current address only when clicked. These actions are disabled when there is no active page.
 - **Middle-click to close:** click the middle mouse button on a regular open-tab row to close it without activating it. Chrome-pinned tabs, Arclet pinned pages, and favorites are protected; explicitly closing or unpinning them remains available through the existing controls. Closed regular tabs can be restored as usual.
-- **Full-page settings:** the footer’s Settings button opens or focuses Arclet’s settings in a regular Chrome tab. Vertical navigation separates **Appearance**, **Sidebar**, **Import & export**, and **Help & about**. Changes save immediately and update open sidebars. Chrome’s extension Options entry opens the same page; no new permissions are needed. Space-specific editing stays in the sidebar menus.
+- **Full-page settings:** the footer’s Settings button opens or focuses Arclet’s settings in a regular Chrome tab. Vertical navigation separates **Appearance**, **Sidebar**, **Sync**, **Import & export**, and **Help & about**. Changes save immediately and update open sidebars. Chrome’s extension Options entry opens the same page; no new permissions are needed. Space-specific editing stays in the sidebar menus.
 - **Light, dark, and system appearance** from **Settings → Appearance**. Optionally enable **Settings → Appearance → Custom background color** and choose a color or enter a six-digit hex value. This main background override persists across windows and restarts, independently of space colors. Disable it or choose **Use theme default** to restore the current theme’s background.
 - **Neutral gray interface:** settings, menus, dialogs, primary buttons, and focus outlines use the gray palette below, independently of the selected space. The compact search bar and favorite tiles have no borders and follow the selected space’s tab-area background, including custom colors; their hover states retain that color. Slate spaces use the neutral tab-area color; other palettes and custom backgrounds remain available.
 - **Custom space backgrounds:** create or edit a space, enable **Custom background color**, and use the picker or hex input. The color applies to that space’s tab area, search bar, favorite tiles, and selected footer tab in every theme, independently of the main background and icon color. Choose a palette, disable the toggle, or select **Use palette** to return to the existing theme-aware palettes. Changes apply when you save the space and persist across restarts.
@@ -52,6 +52,25 @@ The public **Arclet format v1** covers spaces, favorites, pinned pages, folders,
 Export excludes live browser tabs, history, cookies, passwords, and tab-recovery state. All import/export processing happens locally.
 
 Long HTTP/HTTPS URLs are supported within the overall 5 MiB backup limit. Blank page titles use the hostname. Saved layout changes are checked against the backup’s size and record limits before saving so they remain exportable. A layout saved by an older version that already exceeds a limit can still be edited, reordered, and shrunk; only changes that add items or address length are refused until it is back under the limit. Import previews report a merged result that would exceed a limit before you confirm. Older duplicate pins and blank titles are repaired when loaded or exported.
+
+## Optional Chrome Sync
+
+**Settings → Sync** assesses the current configuration before enabling anything. Sync is off by default on every device. It uses Chrome’s existing `storage` permission; Arclet adds no account system or backend. Enable Chrome Sync in Chrome itself, using the same Google account and Arclet extension on each device. Arclet cannot determine whether Chrome is signed in or actually delivering data remotely.
+
+The working limit is **80 KiB (81,920 bytes)**, displayed as 80 KB in the interface. Usage includes the serialized configuration, keys, and snapshot metadata, with a small conservative allowance for revision metadata. It counts actual stored content rather than reserving 1 KB per page. Oversized configurations remain fully local. The assessment estimates how many pinned URLs need removing, starting with the largest entries; if pins alone cannot free enough room, it also points to favorites/folders. Nothing is removed automatically.
+
+After enabling, a proposed saved-layout or preference change that would exceed the limit is rejected before storage changes. Imports are checked both at preview and when confirmed. To exceed 80 KB, explicitly turn Sync off and confirm the change. Disabling affects only this device and keeps its configuration; it does not delete the Chrome copy or disable other devices.
+
+At **80% of the working limit (64 KiB)**, a donut indicator appears beside Settings. Click it for exact usage, status, an explanation of the limit, and a link to Sync settings. The settings page always shows usage, eligibility, pending writes, conflicts, and errors.
+
+- Sync includes spaces, favorites, pinned pages, folders, order, custom icon names/colors, and appearance preferences. Live tabs, history, recovery checkpoints, current space per window, ownership, and the Sync enable preference stay local.
+- If Chrome already has a configuration, review its counts and explicitly choose this device’s configuration or Chrome’s copy. Competing edits pause uploads for a reviewed choice. A local recovery copy of the configuration being replaced can be downloaded from Sync settings and restored through normal JSON import.
+- Writes are coalesced for five seconds. Changes are saved locally first; failures keep Sync enabled and retain pending work. Retry from Sync settings or restart Chrome to retry. Chrome manages offline delivery. A “saved to Chrome storage” status is not confirmation of server delivery.
+- Snapshots use bounded pieces and an integrity hash. Incomplete, mixed, invalid, or oversized incoming data never replaces local settings. If an incomplete Chrome copy remains stuck, review Sync and explicitly choose to replace it from the complete local configuration. This is synchronization of one current configuration, not cloud backup history.
+
+Cross-device Sync requires the **same extension ID**. Chrome Web Store installs provide a consistent ID. For unpacked development installs, configure the published extension’s public key as described in [Chrome’s extension ID guidance](https://developer.chrome.com/docs/extensions/reference/manifest/key); changing an existing installation’s ID creates separate extension storage, so export first. The extension does not silently change its ID.
+
+The browser preview simulates Sync using local storage on that preview origin. It never contacts Chrome Sync or Google. Native delivery between two signed-in Chrome devices has not yet been verified.
 
 ## Theme palette
 
@@ -102,7 +121,7 @@ Open `http://127.0.0.1:4173/sidepanel.html?demo=1`. This explicit preview uses s
 ```sh
 npm test          # State, concurrency, navigation, and tab-action regression tests
 npm run check    # Manifest, resources, CSP, IDs, and JS syntax
-npm run package  # Produces dist/arclet/ and dist/arclet-0.16.2.zip
+npm run package  # Produces dist/arclet/ and dist/arclet-0.17.0.zip
 ```
 
 After changing source files, click Reload on the extension’s card at `chrome://extensions`, then close and reopen the panel. There are no remote scripts, fonts, or build tools.
@@ -116,6 +135,7 @@ Run `node scripts/reliability-smoke.mjs` with the same `ARCLET_PLAYWRIGHT` and `
 - `src/background.js` registers Chrome events and configures the toolbar action.
 - `options.html`, `src/options.js`, and `src/options.css` implement the full-page settings and section navigation.
 - `src/message-access.js` restricts worker commands to the extension’s UI documents; the options page can only read state, change preferences, and import/export.
+- `src/chrome-sync.js` handles opt-in Sync, reviewed changes, conflicts, and recovery copies; `src/sync-format.js` validates snapshots and measures capacity.
 - `src/controller.js` is the single writer for state; commands and browser events are serialized across panels.
 - `src/saved-tabs.js` keeps running-instance ownership separate from saved URLs and handles conservative home-tab adoption.
 - `src/persistence.js` checkpoints windows and recovers tabs one-to-one after a browser restart.
@@ -136,7 +156,7 @@ Run `node scripts/reliability-smoke.mjs` with the same `ARCLET_PLAYWRIGHT` and `
 | --- | --- |
 | `sidePanel` | Show the sidebar. |
 | `tabs` | Read tab titles, URLs, and status to display and organize tabs. |
-| `storage` | Save spaces, shortcuts, appearance, and a local tab-recovery checkpoint on this device. |
+| `storage` | Save configuration and tab recovery locally; optionally synchronize saved configuration through Chrome Sync after explicit opt-in. |
 | `sessions` (optional) | Restore a recently closed tab. Chrome asks for access when you first choose Restore; denying access leaves your tabs unchanged. |
 | `webNavigation` | Distinguish automatic home redirects from ordinary navigation in saved tab instances. |
 | `favicon` | Read Chrome’s favicon resources without a third-party icon service. |
@@ -145,19 +165,19 @@ Copy URL uses the browser clipboard API directly from your click and needs no cl
 
 The `webNavigation` permission identifies automatic redirects so a redirected saved home does not show the Away arrow. Redirect destinations belong to the running instance, survive unambiguous session restoration, and are excluded from import/export. Existing redirected tabs need Return to saved URL or close/reopen once to establish this evidence. Late script redirects and ambiguous event sequences conservatively stay Away.
 
-No analytics, account, backend, host permissions, or webpage-content access. Opening a URL or submitting a Google search naturally navigates the browser to that service. Removing the extension removes its saved data.
+No analytics, Arclet account, backend, host permissions, or webpage-content access. By default configuration stays on this device. Optional Chrome Sync sends saved URLs, titles, layout, and preferences through Chrome’s synchronization service after explicit opt-in; protection and delivery depend on Chrome and the user’s Google account settings. This is not an Arclet-provided encryption vault. Opening a URL or submitting a Google search naturally navigates the browser to that service. Uninstalling removes local extension storage. Disabling Arclet Sync does not erase the copy already in Chrome.
 
 Arclet is an independent project inspired by Arc’s interaction patterns. It is not affiliated with Arc or The Browser Company.
 
 ## Chrome Web Store submission notes
 
-Suggested listing description: “A calmer home for your tabs. Organize tabs into spaces, keep favorites close, save pinned pages in folders, and search across your windows. Your settings and saved pages stay on your device. Arclet is an independent project and is not affiliated with Arc or The Browser Company.”
+Suggested listing description: “A calmer home for your tabs. Organize tabs into spaces, keep favorites close, save pinned pages in folders, and search across your windows. Your settings and saved pages stay on your device unless you enable optional Chrome Sync. Arclet is an independent project and is not affiliated with Arc or The Browser Company.”
 
 Permission justifications for the dashboard:
 
 - **sidePanel:** Arclet displays its tab and space organizer in Chrome’s native side panel.
 - **tabs:** Arclet displays tab titles, URLs, status, audio, and pinned state, and lets the user activate, arrange, move, mute, navigate, and close tabs. It needs access across the user’s normal windows to maintain window-specific spaces and saved-page ownership.
-- **storage:** Arclet stores spaces, saved pages, folders, appearance preferences, and a bounded restart checkpoint locally. Session-only tab identities live in session storage. No data is sent to a server.
+- **storage:** Arclet stores spaces, saved pages, folders, appearance preferences, and a bounded restart checkpoint locally. Session-only tab identities live in session storage. Optional, explicitly enabled Chrome Sync stores only saved configuration in Chrome’s synchronization service; live tabs, history, and recovery state remain local.
 - **webNavigation:** Main-frame navigation events distinguish Chrome-verified automatic redirects of saved pages from ordinary browsing so saved-page Home/Away indicators remain accurate. Events for tabs without saved-page ownership are ignored.
 - **favicon:** Arclet displays Chrome’s locally available site icons beside tabs and saved pages, without contacting an external favicon service.
 - **sessions (optional):** Only needed for the user-invoked Restore last closed tab action. Requested from that action on first use. Recently closed session identifiers can reconnect a saved page to its restored tab. The extension does not request or display other-device sessions.
