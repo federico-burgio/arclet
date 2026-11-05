@@ -15,7 +15,7 @@ The default shortcut is **⌘ Shift E** on macOS or **Ctrl Shift E** elsewhere. 
 ## What works
 
 - **Live vertical tabs** for the current Chrome window. Switch, close, mute, and restore the last closed tab. Right-click an open tab for **Close all tabs** or **Close all tabs below**. These actions show a confirmation with the tab count and warn when Chrome-pinned tabs are included. They close only the confirmed tabs in the visible Open tabs list in that space and window; saved pins/favorites, newly arriving tabs, and other spaces stay open. “Below” follows the current displayed order and keeps the clicked tab open. New tab and the empty content area also offer **Close all tabs**. Recently closed tabs remain restorable after you grant optional access on the first Restore action.
-- **Spaces** with names, icons, and six color palettes. New spaces use Slate gray by default. The selected footer tab shows its name and connects to a subtly colored folder containing its tabs. The surrounding background uses the theme’s gray unless you choose a custom background color. The selector sits at the footer’s left edge. Add a space with its plus button; right-click a space to edit it.
+- **Spaces** with names, icons, and six color palettes. New spaces use Slate gray by default. The selected footer tab shows its name and matches the background of the folder containing its tabs, including the default Slate gray. The surrounding background uses the theme’s gray unless you choose a custom background color. The selector sits at the footer’s left edge. Add a space with its plus button; right-click a space to edit it.
 - **Drag and drop** to reorder tabs, or drop a tab onto a space icon to move it. A tab’s right-click menu also provides a keyboard-accessible way to move it (Shift F10).
 - **Favorites** shared by all spaces. Right-click an open tab or pinned page and choose **Add to favorites**. A pinned page can be saved as a favorite even when its browser tab is closed. A favorite owns one running browser tab per window and resumes its current page across spaces. That instance stays out of the regular tab list as it navigates; independent duplicate tabs remain visible. Right-click a favorite and choose **Remove favorite** to remove it; its running instances remain open as regular tabs. Drag favorite tiles to rearrange them, including across wrapped rows; insertion markers show the destination and Escape cancels. Their global order survives restarts. Use Alt+← / Alt+→ or the context menu’s Move left / Move right actions for keyboard ordering. Empty favorites sections are hidden.
 - **Pinned pages** per space. Right-click an open tab and choose **Pin to this space**. These are durable shortcuts: closing the live tab keeps the saved page. Clicking an open saved item resumes its associated browser tab, even after it navigates to another page or domain. A closed item opens its saved home URL, adopting an eligible unassociated home tab when unambiguous. The inline close icon closes its running instance and keeps the pin; only the context menu unpins it, leaving its browser tab regular. Right-click a pinned page to favorite, mute, close its live tab, or unpin it.
@@ -57,11 +57,12 @@ Long HTTP/HTTPS URLs are supported within the overall 5 MiB backup limit. Blank 
 
 | UI role | Light | Dark |
 | --- | --- | --- |
-| App background | `#ECEEF0` | `#1B1E23` |
+| App background | `#F8F9FB` | `#1B1E23` |
 | Sidebar / tab area | `#F5F6F7` | `#23272E` |
 | Cards, menus, dialogs | `#FFFFFF` | `#2B3038` |
 | Hover background | `#E4E7EB` | `#343A43` |
-| Selected tab / space | `#D9DEE5` | `#424A56` |
+| Selected tab | `#D9DEE5` | `#424A56` |
+| Selected space | Matches space background | Matches space background |
 | Primary text | `#30343B` | `#ECEEF0` |
 | Secondary text | `#626973` | `#B0B7C1` |
 | Muted icons | `#717985` | `#969CA5` |
@@ -101,7 +102,7 @@ Open `http://127.0.0.1:4173/sidepanel.html?demo=1`. This explicit preview uses s
 ```sh
 npm test          # State, concurrency, navigation, and tab-action regression tests
 npm run check    # Manifest, resources, CSP, IDs, and JS syntax
-npm run package  # Produces dist/arclet/ and dist/arclet-0.16.1.zip
+npm run package  # Produces dist/arclet/ and dist/arclet-0.16.2.zip
 ```
 
 After changing source files, click Reload on the extension’s card at `chrome://extensions`, then close and reopen the panel. There are no remote scripts, fonts, or build tools.

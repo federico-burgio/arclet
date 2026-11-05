@@ -131,10 +131,8 @@ function applyTheme() {
     ? `color-mix(in srgb, var(--space-${mode}) ${mode === 'dark' ? 92 : 65}%, white)` : null);
   if (folderBackground) {
     root.style.setProperty('--folder-background', folderBackground);
-    root.style.setProperty('--selected-space-background', 'var(--folder-background)');
   } else {
     root.style.removeProperty('--folder-background');
-    root.style.removeProperty('--selected-space-background');
   }
   document.querySelector('meta[name="theme-color"]').content = getComputedStyle(root).getPropertyValue('--background').trim();
 
@@ -869,7 +867,6 @@ $('#settings-button').addEventListener('click', async () => {
 
 try {
   platform = await connect();
-  if (platform.demo) $('#footer-note').textContent = 'Preview mode · sample tabs';
   platform.subscribe(() => {
     clearTimeout(refreshTimer);
     refreshTimer = setTimeout(refresh, 70);

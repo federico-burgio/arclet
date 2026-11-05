@@ -23,9 +23,9 @@
     --text: #30343b; --muted: #626973; --faint: #717985; --icon: #717985;
     --wash: #ffffff; --hover: #e4e7eb; --active: #d9dee5; --line: #d1d6dc;
     --surface: #ffffff; --shadow: 0 18px 55px rgb(27 30 35 / .16);
-    --background: #eceef0; --sidebar-surface: #f5f6f7; --folder-background: var(--sidebar-surface);
+    --background: #f8f9fb; --sidebar-surface: #f5f6f7; --folder-background: var(--sidebar-surface);
     --primary: #30343b; --on-primary: #ffffff; --focus: #626973; --accent: var(--focus);
-    --selected-space-background: var(--active);
+    --selected-space-background: var(--folder-background);
   }
   :root[data-mode="dark"] {
     color-scheme: dark; --text: #eceef0; --muted: #b0b7c1; --faint: #969ca5; --icon: #969ca5;
@@ -54,8 +54,6 @@
   .content-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent; padding: 10px 8px 14px; }
   .divider { height: 1px; background: var(--line); margin: 19px 6px 10px; }
   footer { flex-shrink: 0; }
-  .footer-note { color: var(--faint); display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.692308rem; padding: 10px 8px 15px; }
-  .status-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); opacity: .7; }
   .footer-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 28px; align-items: start; gap: 5px; min-height: 42px; }
   .spaces-bar { grid-column: 1; display: flex; align-items: center; justify-content: flex-start; min-width: 0; gap: 5px; }
   .footer-toolbar > .icon-button { margin-top: 6px; }
@@ -272,6 +270,6 @@
   .toast.error { border-color: #b44b6070; }
   @keyframes appear { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
   @media (max-width: 290px) { .sidebar { padding-inline: 9px; } .search-launcher { font-size: 0.769231rem; gap: 6px; } .search-launcher kbd { display: none; } }
-  @media (max-height: 560px) { .favorites-section { padding-top: 12px; padding-bottom: 10px; } .footer-note { display: none; } }
+  @media (max-height: 560px) { .favorites-section { padding-top: 12px; padding-bottom: 10px; } }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 }

@@ -57,11 +57,11 @@ function applyTheme() {
   if (!state) return;
   const mode = state.theme === 'system' ? (darkMode.matches ? 'dark' : 'light') : state.theme;
   document.documentElement.dataset.mode = mode;
-  document.querySelector('meta[name="theme-color"]').content = mode === 'dark' ? '#1b1e23' : '#eceef0';
+  document.querySelector('meta[name="theme-color"]').content = mode === 'dark' ? '#1b1e23' : '#f8f9fb';
   document.querySelectorAll('[data-theme]').forEach(node => node.setAttribute('aria-pressed', String(node.dataset.theme === state.theme)));
   $('#custom-background').checked = Boolean(state.backgroundColor);
   $('#background-controls').hidden = !state.backgroundColor;
-  $('#background-color').value = state.backgroundColor ?? (mode === 'dark' ? '#1b1e23' : '#eceef0');
+  $('#background-color').value = state.backgroundColor ?? (mode === 'dark' ? '#1b1e23' : '#f8f9fb');
   if (document.activeElement !== $('#background-hex')) {
     $('#background-hex').value = $('#background-color').value;
     $('#background-hex').setCustomValidity('');
@@ -194,7 +194,7 @@ $('#background-hex').addEventListener('input', event => event.currentTarget.setC
 $('#background-hex').addEventListener('change', event => {
   const input = event.currentTarget;
   const value = input.value.trim();
-  input.setCustomValidity(/^#[0-9a-f]{6}$/i.test(value) ? '' : 'Enter a six-digit hex color, such as #eceef0.');
+  input.setCustomValidity(/^#[0-9a-f]{6}$/i.test(value) ? '' : 'Enter a six-digit hex color, such as #f8f9fb.');
   if (input.reportValidity()) setBackgroundColor(value);
 });
 $('#reset-background').addEventListener('click', () => setBackgroundColor(null));
