@@ -7,14 +7,9 @@
   <p><a href="#make-room-for-a-calmer-browser">Get started</a> &nbsp;·&nbsp; <a href="#a-place-for-every-part-of-your-day">Explore Arclet</a> &nbsp;·&nbsp; <a href="docs/reference.md">Documentation</a></p>
 </div>
 
-![Screenshot placeholder: a full Chrome window with Arclet on the left and a webpage beside it.](docs/images/browser-placeholder.svg)
+![Arclet’s live sidebar alongside an example webpage in a browser layout preview.](docs/images/browser-preview.jpg)
 
-<p align="center"><sub>An Arc-inspired sidebar that feels at home beside the page.</sub></p>
-
-<!-- SCREENSHOT 01 — Replace the image above with a real full-window Chrome capture.
-Show Arclet on the left, a useful webpage on the right, and Chrome's real browser
-frame, including its tab strip. Keep enough of the page visible to show how the
-sidebar fits into everyday browsing. Use realistic, non-sensitive sample data. -->
+<p align="center"><sub>Browser layout preview: the live Arclet sidebar beside an example webpage.</sub></p>
 
 ## A place for every part of your day
 
@@ -31,12 +26,9 @@ while pinned pages and folders give each project a home of its own.
 
 Close a pinned page when you're done with it. Its shortcut stays, ready for next time.
 
-![Screenshot placeholder: a close-up of Arclet showing favorites, a project folder, pinned pages, and spaces.](docs/images/spaces-placeholder.svg)
-
-<!-- SCREENSHOT 02 — Replace with an actual sidebar capture showing a small row
-of recognizable favorites, one expanded project folder, a few pinned pages,
-regular tabs, and clearly named spaces in the footer. Keep labels readable at
-README width. Use the same sample workspace as the hero. -->
+<p align="center">
+  <img src="docs/images/workspace.jpg" width="420" alt="Arclet sidebar showing favorites, an expanded pinned folder, open tabs, and Personal, Work, and Reading spaces.">
+</p>
 
 ## Less looking. More doing.
 
@@ -56,12 +48,7 @@ whatever you're doing.
 Choose light, dark, or system appearance. Give spaces their own colors and icons,
 adjust text size, and show just the navigation controls you want.
 
-![Screenshot placeholder: matching light and dark Chrome windows showing Arclet alongside the same webpage.](docs/images/appearance-placeholder.svg)
-
-<!-- SCREENSHOT 03 — Replace with two matching real Chrome captures, light and
-dark, arranged side by side. Include the webpage and browser frame in each to
-show how Arclet blends with Chrome. Match sidebar width, workspace, and page.
-Optionally show one subtle custom space color; avoid settings dialogs here. -->
+![Matching light and dark browser layout previews with the live Arclet sidebar and an example webpage.](docs/images/appearance-preview.jpg)
 
 ## Settle in. Pick up where you left off.
 
