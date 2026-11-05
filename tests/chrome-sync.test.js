@@ -148,7 +148,17 @@ test('second device can explicitly use Chrome; subsequent remote changes arrive 
   assert.equal(state.tabs[0].url, 'https://local-browser-tab.test/');
   assert.equal(state.sync.pending, false);
   assert.equal(state.sync.conflict, false);
-  assert.equal((await second.run('EXPORT_SYNC_BACKUP')).exportDocument.settings.theme, 'system');
+  // The copy is this device's configuration from before it chose Chrome's, not
+  // the previous synced version: routine updates must not replace it.
+  const copy = (await second.run('EXPORT_SYNC_BACKUP')).exportDocument;
+  assert.equal(copy.settings.theme, 'system');
+  assert.deepEqual(copy.spaces[0].items.map(item => item.url), [makeData(1).pins[0].url]);
+  await first.run('SET_FONT_SCALE', { scale: 150 });
+  await publish(first);
+  await second.controller.syncChanged();
+  assert.equal((await second.run()).fontScale, 150);
+  assert.equal(second.local.syncBackup.data.pins.length, 1);
+  assert.equal(second.local.syncBackup.data.theme, 'system');
 });
 
 test('competing changes preserve local work and require an explicit reviewed choice', async () => {
@@ -313,4 +323,27 @@ test('corrupt opt-in preferences cannot enable Sync implicitly', async () => {
   b.api.storage.sync.get = async () => { throw new Error('Must not access Sync'); };
   await b.controller.initialize();
   assert.equal((await b.run()).sync.enabled, false);
+});
+
+test('capacity advice with mixed pin lengths is sufficient and close to the minimum', () => {
+  const data = makeData(60, 200);
+  data.pins.forEach((pin, index) => { pin.url = `${pin.url}${'y'.repeat((index * 137) % 3000)}`; });
+  const longestFirst = [...data.pins].sort((a, b) => b.url.length - a.url.length);
+  const without = count => ({ ...data, pins: data.pins.filter(pin => !longestFirst.slice(0, count).includes(pin)) });
+  const check = assessSync(data);
+  assert.equal(check.fits, false);
+  assert.equal(assessSync(without(check.removePins)).fits, true);
+  let minimum = 0;
+  while (!assessSync(without(minimum)).fits) minimum++;
+  assert.ok(check.removePins >= minimum && check.removePins <= minimum + 1, `advised ${check.removePins}, minimum ${minimum}`);
+});
+
+test('far-oversized layouts are measured quickly and still close to their exact size', () => {
+  const data = makeData(2000, 400);
+  const check = assessSync(data);
+  const exact = storageBytes(packSync(data));
+  assert.equal(check.fits, false);
+  assert.ok(check.used <= exact && check.used > exact * .99, `${check.used} vs ${exact}`);
+  assert.ok(check.pinsAloneEnough && check.removePins > 0);
+  assert.equal(assessSync({ ...data, pins: [...data.pins].sort((a, b) => b.url.length - a.url.length).slice(check.removePins) }).fits, true);
 });

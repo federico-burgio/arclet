@@ -8,7 +8,6 @@ function notify() {
 const controller = createController(chrome, notify);
 const configure = () => chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
 configure();
-chrome.storage.sync.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' }).catch(console.error);
 chrome.runtime.onInstalled.addListener(configure);
 chrome.runtime.onStartup.addListener(configure);
 
