@@ -245,7 +245,7 @@ test('restart duplicate ambiguity leaves tabs regular and no restored tabs means
 test('late restored URLs recover an owned instance and removing saved records prevents recovery', async () => {
   const { browser, page } = await fixture();
   browser.change(1, { url: 'https://away.test/' });
-  await browser.run();
+  await browser.controller.tabsChanged();
   browser.restart([tab(91, ''), tab(92, 'https://other.test/', 1)]);
   await browser.run();
   browser.change(91, { url: 'https://away.test/' });
@@ -259,15 +259,15 @@ test('late restored URLs recover an owned instance and removing saved records pr
 test('shutdown removal events preserve the saved-owner checkpoint and private instances never reach disk', async () => {
   const { browser, page } = await fixture();
   browser.change(1, { url: 'https://away.test/' });
-  await browser.run();
+  await browser.controller.tabsChanged();
   browser.setTabs([]);
   await browser.controller.tabRemoved(1, { windowId: 1, isWindowClosing: true });
   browser.restart([tab(91, 'https://away.test/'), tab(92, 'https://other.test/', 1)]);
   assert.equal(owner(await browser.run(), page).id, 91);
-  const privateBrowser = fakeBrowser([tab(10, 'https://private.test/', 0, 1, { incognito: true })]);
+  const privateBrowser = fakeBrowser([tab(10, 'https://home.test/')]);
   const privatePage = (await privateBrowser.run('SAVE_PAGE', { kind: 'pin', tabId: 10 })).pins[0];
-  privateBrowser.change(10, { url: 'https://private-away.test/' });
-  await privateBrowser.run();
+  privateBrowser.change(10, { url: 'https://private-away.test/', incognito: true });
+  await privateBrowser.controller.tabsChanged();
   assert.doesNotMatch(JSON.stringify(privateBrowser.local.workspace), /private/);
   assert.equal(owner(await privateBrowser.run(), privatePage).id, 10);
 });

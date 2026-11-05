@@ -5,6 +5,11 @@ export async function connect() {
       demo: false,
       openOptions: () => chrome.runtime.openOptionsPage(),
       async request(type, payload = {}) {
+        // Request directly from the menu click, before any asynchronous work can
+        // consume Chrome's user gesture. Already-granted access prompts no more.
+        if (type === 'RESTORE_TAB' && !await chrome.permissions.request({ permissions: ['sessions'] })) {
+          throw new Error('Recently closed tab access was not allowed. You can try Restore again whenever you choose.');
+        }
         const response = await chrome.runtime.sendMessage({ type, payload, windowId: window.id });
         if (!response?.ok) throw new Error(response?.error || 'The extension reloaded. Close and reopen the sidebar.');
         return response.state;

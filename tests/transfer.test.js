@@ -188,3 +188,39 @@ test('page control placement exports and imports as an optional appearance setti
   document.settings.pageControlsPosition = 'bottom';
   assert.throws(() => normalizeImport(document), /left or right/);
 });
+
+test('space deletion merges duplicate pins and leaves the discarded instance open', async () => {
+  const browser = fakeBrowser([tab(1, 'https://same.test/'), tab(2, 'https://same.test/', 1)]);
+  await browser.run('SAVE_PAGE', { tabId: 1, kind: 'pin', spaceId: 'personal' });
+  await browser.run('SAVE_PAGE', { tabId: 2, kind: 'pin', spaceId: 'work' });
+  const state = await browser.run('DELETE_SPACE', { id: 'work' });
+  assert.equal(state.pins.length, 1);
+  assert.equal(state.tabs.length, 2);
+  assert.equal(state.tabs.find(tab => tab.id === 2).savedPageId, null);
+  assert.equal((await browser.run('EXPORT_DATA')).exportDocument.spaces[0].items.length, 1);
+});
+
+test('long addresses and whitespace-only titles save and round trip', async () => {
+  const url = `https://long.test/?q=${'a'.repeat(9000)}`;
+  const browser = fakeBrowser([tab(1, url, 0, 1, { title: '\u00a0' })]);
+  assert.equal((await browser.run('SAVE_PAGE', { tabId: 1, kind: 'pin' })).pins[0].title, 'long.test');
+  const document = (await browser.run('EXPORT_DATA')).exportDocument;
+  assert.equal(normalizeImport(document).spaces[0].items[0].url, url);
+});
+
+test('legacy duplicates and blank titles export without altering the source', () => {
+  const data = defaultData();
+  data.pins = [1, 2].map(id => ({ id: String(id), spaceId: 'personal', url: 'https://old.test/', title: '\u00a0' }));
+  const before = structuredClone(data);
+  const exported = exportData(data);
+  assert.equal(exported.spaces[0].items.length, 1);
+  assert.equal(exported.spaces[0].items[0].title, 'old.test');
+  assert.deepEqual(data, before);
+});
+
+test('saving a layout beyond the backup size limit leaves durable data intact', async () => {
+  const browser = fakeBrowser([tab(1, `https://huge.test/?q=${'a'.repeat(MAX_TRANSFER_BYTES)}`)]);
+  const before = structuredClone(browser.local.data);
+  await assert.rejects(browser.run('SAVE_PAGE', { tabId: 1, kind: 'pin' }), /5 MiB/);
+  assert.deepEqual(browser.local.data, before);
+});

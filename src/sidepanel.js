@@ -41,6 +41,7 @@ let refreshingPage = false;
 let navigatingPage = false;
 let copyingUrl = false;
 let clearingTabs = false;
+let pendingClose;
 let draggingId = null;
 let draggingPinned = false;
 let draggingFavorites = false;
@@ -91,6 +92,28 @@ async function command(type, payload, success) {
     return false;
   }
 }
+
+function confirmCloseTabs(payload) {
+  if (!state || $('#bulk-close-dialog').open) return;
+  let tabs = openTabsForSpace(state.tabs, state.pins, payload.spaceId, state.favorites);
+  if (payload.mode === 'below') {
+    const index = tabs.findIndex(tab => tab.id === payload.id);
+    if (index < 0) return;
+    tabs = tabs.slice(index + 1);
+  }
+  if (!tabs.length) return;
+  const pinned = tabs.filter(tab => tab.pinned).length;
+  $('#bulk-close-description').textContent = `Close ${tabs.length} ${tabs.length === 1 ? 'tab' : 'tabs'} in this space?` +
+    (pinned ? ` This includes ${pinned} Chrome-pinned ${pinned === 1 ? 'tab' : 'tabs'}.` : '');
+  pendingClose = { ...payload, ids: tabs.map(tab => tab.id) };
+  $('#bulk-close-dialog').returnValue = 'cancel';
+  $('#bulk-close-dialog').showModal();
+}
+$('#bulk-close-dialog').addEventListener('close', () => {
+  const payload = pendingClose;
+  pendingClose = null;
+  if (payload && $('#bulk-close-dialog').returnValue === 'confirm') command('CLOSE_OPEN_TABS', payload, 'Open tabs closed.');
+});
 
 function applyTheme() {
   if (!state) return;
@@ -483,8 +506,8 @@ function renderTabs() {
         { separator: true },
         { label: 'Close tab', icon: 'close', action: () => command('CLOSE_TAB', { id: tab.id }) },
         { label: 'Close all tabs below', icon: 'list-end', disabled: tabs.at(-1)?.id === tab.id,
-          action: () => command('CLOSE_OPEN_TABS', { mode: 'below', id: tab.id, spaceId: tab.spaceId }, 'Tabs below closed.') },
-        { label: 'Close all tabs', icon: 'copy-x', action: () => command('CLOSE_OPEN_TABS', { mode: 'all', spaceId: tab.spaceId }, 'Open tabs closed.') }
+          action: () => confirmCloseTabs({ mode: 'below', id: tab.id, spaceId: tab.spaceId }) },
+        { label: 'Close all tabs', icon: 'copy-x', action: () => confirmCloseTabs({ mode: 'all', spaceId: tab.spaceId }) }
       ]);
     };
     bindContextMenu(row, showTabMenu);
@@ -826,7 +849,7 @@ function openContentActions(x, y) {
     { label: 'Restore last closed tab', icon: 'history', action: () => command('RESTORE_TAB', {}, 'Tab restored.') },
     { separator: true },
     { label: 'Close all tabs', icon: 'copy-x', disabled: !tabs.length,
-      action: () => command('CLOSE_OPEN_TABS', { mode: 'all', spaceId: targetSpace }, 'Open tabs closed.') }
+      action: () => confirmCloseTabs({ mode: 'all', spaceId: targetSpace }) }
   ]);
 }
 bindContextMenu($('#new-tab'), openContentActions);

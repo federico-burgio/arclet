@@ -185,3 +185,77 @@ test('private URLs are never written into the persistent checkpoint', async () =
   assert.equal(JSON.stringify(browser.local.workspace).includes('private.test'), false);
   assert.equal((await browser.run('GET_STATE', {}, 2)).tabs[0].spaceId, 'work');
 });
+
+test('state reads never write storage, even when every write fails', async () => {
+  const browser = fakeBrowser([tab(1, 'https://read.test/')]);
+  const fail = async () => { throw new Error('Storage quota exceeded'); };
+  browser.api.storage.local.set = fail;
+  browser.api.storage.session.set = fail;
+  assert.equal((await browser.run()).tabs[0].url, 'https://read.test/');
+});
+
+test('checkpoint failures do not prevent settings from saving or state from loading', async () => {
+  const browser = fakeBrowser([tab(1, 'https://save.test/')]);
+  const set = browser.api.storage.local.set;
+  browser.api.storage.local.set = async values => {
+    if ('workspace' in values) throw new Error('Storage quota exceeded');
+    return set(values);
+  };
+  await browser.run('SET_THEME', { theme: 'dark' });
+  assert.equal(browser.local.data.theme, 'dark');
+  assert.equal((await browser.run()).theme, 'dark');
+});
+
+test('an old oversized checkpoint is evicted when it blocks a durable settings write', async () => {
+  const browser = fakeBrowser();
+  browser.local.workspace = { version: 1, windows: [] };
+  const set = browser.api.storage.local.set;
+  browser.api.storage.local.set = async values => {
+    if ('data' in values && browser.local.workspace) throw new Error('QUOTA_BYTES exceeded');
+    return set(values);
+  };
+  assert.equal((await browser.run('SET_THEME', { theme: 'dark' })).theme, 'dark');
+  assert.equal(browser.local.data.theme, 'dark');
+});
+
+test('checkpoint URLs and total bytes are bounded without truncating addresses', async () => {
+  const browser = fakeBrowser([
+    tab(1, `data:text/plain,${'x'.repeat(2 * 1024 * 1024)}`),
+    ...Array.from({ length: 200 }, (_, i) => tab(i + 2, `https://bounded.test/${i}?q=${'x'.repeat(8000)}`, i + 1))
+  ]);
+  await browser.controller.initialize();
+  assert.ok(new TextEncoder().encode(JSON.stringify(browser.local.workspace)).length <= 1024 * 1024);
+  const records = browser.local.workspace.windows.flatMap(window => window.tabs);
+  assert.ok(records.length > 0 && records.length < 200);
+  assert.ok(records.every(record => record.url.startsWith('https://bounded.test/')));
+});
+
+test('long sessions trim closed-window flags and recovery markers without erasing shutdown checkpoints', async () => {
+  const browser = fakeBrowser();
+  for (let id = 1; id <= 40; id++) {
+    browser.setTabs([tab(id, `https://session.test/${id}`, 0, id)]);
+    await browser.controller.tabCreated(await browser.api.tabs.get(id));
+    await browser.run('SELECT_SPACE', { id: 'work' }, id);
+    browser.setTabs([]);
+    await browser.controller.tabRemoved(id, { windowId: id, isWindowClosing: true });
+    await browser.controller.windowRemoved(id);
+  }
+  assert.deepEqual(browser.live.closingWindows, {});
+  assert.deepEqual(browser.live.fixedWindows, {});
+  assert.deepEqual(browser.live.windowKeys, {});
+  assert.deepEqual(browser.live.recovery.used, {});
+  assert.ok(browser.local.workspace.windows.length <= 20);
+  browser.restart([tab(101, 'https://session.test/40', 0, 100)]);
+  assert.equal((await browser.run('GET_STATE', {}, 100)).spaceId, 'work');
+});
+
+test('closing newly created tabs does not accumulate irrelevant consumed-record markers', async () => {
+  const browser = fakeBrowser([tab(1, 'https://keeper.test/')]);
+  for (let index = 0; index < 40; index++) {
+    const state = await browser.run('NEW_TAB', { input: `https://temporary.test/${index}` });
+    const created = state.tabs.find(tab => tab.url.includes('temporary.test'));
+    await browser.run('CLOSE_TAB', { id: created.id });
+  }
+  assert.deepEqual(browser.live.recovery.used, {});
+  assert.equal((await browser.run()).tabs.length, 1);
+});

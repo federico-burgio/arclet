@@ -66,6 +66,15 @@
       </form>
     </dialog>
 
+    <dialog id="bulk-close-dialog" class="sheet" aria-labelledby="bulk-close-title" aria-describedby="bulk-close-description">
+      <form method="dialog">
+        <div class="sheet-header"><h2 id="bulk-close-title">Close tabs?</h2></div>
+        <p id="bulk-close-description" class="sheet-description"></p>
+        <p class="fine-print">Saved pages, favorites, and tabs in other spaces stay open.</p>
+        <div class="sheet-actions"><button type="submit" value="cancel" class="text-button" autofocus>Cancel</button><button type="submit" value="confirm" class="primary-button">Close tabs</button></div>
+      </form>
+    </dialog>
+
     <dialog id="space-dialog" class="sheet" aria-labelledby="space-dialog-title">
       <form id="space-form">
         <div class="sheet-header"><h2 id="space-dialog-title">A new space</h2><button type="button" class="icon-button" data-close="space-dialog" aria-label="Close" data-icon="close"></button></div>

@@ -8,6 +8,35 @@ const urls = tab => [...new Set([tab.pendingUrl, tab.url].filter(Boolean))];
 const samePage = (left, right) => urls(left).some(url => urls(right).includes(url));
 const validSpace = (data, id) => data.spaces.some(space => space.id === id) ? id : data.spaces[0].id;
 
+export const MAX_CHECKPOINT_BYTES = 1024 * 1024;
+export const MAX_CHECKPOINT_URL_LENGTH = 8192;
+// Omit oversized addresses; truncating them would create false recovery matches.
+export function boundWorkspace(workspace, activeKeys = new Set()) {
+  const bytes = value => new TextEncoder().encode(JSON.stringify(value)).length;
+  let remaining = MAX_CHECKPOINT_BYTES - bytes({ ...workspace, windows: [] });
+  workspace.windows = [...workspace.windows].sort((a, b) =>
+    Number(activeKeys.has(b.key)) - Number(activeKeys.has(a.key)) || b.updatedAt - a.updatedAt
+  ).flatMap(window => {
+    const overhead = bytes({ ...window, tabs: [] }) + 1;
+    if (remaining < overhead) return [];
+    remaining -= overhead;
+    const tabs = window.tabs.flatMap(record => {
+      if ([record.url, record.pendingUrl].some(url => url && url.length > MAX_CHECKPOINT_URL_LENGTH)) return [];
+      const bounded = { ...record };
+      if (bounded.savedHome) {
+        const home = bounded.savedHome;
+        if (home.root.length > MAX_CHECKPOINT_URL_LENGTH) delete bounded.savedHome;
+        else bounded.savedHome = { ...home, urls: home.urls.filter(url => url.length <= MAX_CHECKPOINT_URL_LENGTH).slice(-16) };
+      }
+      const size = bytes(bounded) + 1;
+      if (size > remaining) return [];
+      remaining -= size;
+      return [bounded];
+    });
+    return tabs.length ? [{ ...window, tabs }] : [];
+  });
+}
+
 export function preparePersistence(state) {
   const { live, workspace } = state;
   live.tabKeys ??= {};
@@ -181,6 +210,24 @@ export function reconcileWorkspace(state, tabs) {
   const recent = workspace.windows.filter(window => !activeKeys.has(window.key))
     .sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 20);
   workspace.windows = [...workspace.windows.filter(window => activeKeys.has(window.key)), ...recent];
+  boundWorkspace(workspace, activeKeys);
+  trimSession(state, tabs);
+}
+
+function trimSession({ live }, tabs) {
+  const windowIds = new Set(tabs.map(tab => String(tab.windowId)));
+  for (const [id, key] of Object.entries(live.recovery.bindings)) {
+    if (windowIds.has(id)) continue;
+    // This window finished closing. Its durable checkpoint stays available for
+    // the next browser restart, but this session must not recover it again.
+    live.recovery.windows = live.recovery.windows.filter(window => window.key !== key);
+    delete live.recovery.bindings[id];
+  }
+  for (const map of [live.closingWindows, live.fixedWindows, live.windowKeys, live.windowSpaces, live.recovery.ambiguousWindows ?? {}]) {
+    for (const id of Object.keys(map)) if (!windowIds.has(id)) delete map[id];
+  }
+  const recoverable = new Set(live.recovery.windows.flatMap(window => window.tabs.map(tab => tab.key)));
+  for (const key of Object.keys(live.recovery.used)) if (!recoverable.has(key)) delete live.recovery.used[key];
 }
 
 export function forgetTab(state, id) {

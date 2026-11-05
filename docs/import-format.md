@@ -54,7 +54,7 @@ Favorites use page objects. Pinned pages use the same fields plus `"type": "pin"
 { "type": "pin", "title": "Example", "url": "https://example.com/", "icon": null, "iconColor": null }
 ```
 
-- `url` is required, up to 8,192 characters, and must use HTTP or HTTPS. It is normalized with the URL parser. Browser-internal, `file:`, `javascript:`, and `data:` URLs are not supported saved pages.
+- `url` is required, up to 5,242,880 characters, and must use HTTP or HTTPS. It is normalized with the URL parser. Browser-internal, `file:`, `javascript:`, and `data:` URLs are not supported saved pages.
 - `title` is optional, nonempty, and up to 200 characters. If omitted, the site's hostname is used.
 - `icon` is optional or null for the site's favicon. `iconColor` is optional or null for automatic color; it is ignored when no custom icon is selected.
 - Favorite URLs must be unique within `favorites`. Pinned URLs must be unique across the entire space, including folders. A URL may appear in different spaces, or as both a favorite and a pin.

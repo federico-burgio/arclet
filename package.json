@@ -3,7 +3,7 @@
   "version": "0.16.0",
   "private": true,
   "type": "module",
-  "description": "An Arc-inspired, local-first Chrome sidebar.",
+  "description": "A calm, local-first Chrome sidebar.",
   "scripts": {
     "test": "node --test tests/*.test.js",
     "check": "node scripts/check.mjs",
