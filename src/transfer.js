@@ -8,6 +8,15 @@ const MAX_RECORDS = 10000;
 const SETTINGS = ['theme', 'backgroundColor', 'showSearchBar', 'pageControlsPosition', 'showFavoriteLabels', 'favoritesPerRow', 'fontScale'];
 const PAGE_FIELDS = ['url', 'title', 'icon', 'iconColor'];
 const fail = (path, message) => { throw new Error(`${path}: ${message}`); };
+// Tag size/count failures so callers can tell a full layout from a malformed one.
+const limitError = (message, limit) => Object.assign(new Error(message), { limit });
+
+// What a change adds to a backup: items, plus address bytes (the only unbounded field).
+export function backupSize(data) {
+  const pages = [...data.favorites, ...data.pins];
+  return { records: data.spaces.length + data.folders.length + pages.length,
+    urlBytes: pages.reduce((total, page) => total + String(page.url ?? '').length, 0) };
+}
 function object(value, path, fields) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail(path, 'expected an object.');
   for (const key of Object.keys(value)) if (!fields.includes(key)) fail(path, `unknown field “${key}”.`);
@@ -43,7 +52,7 @@ export function normalizeImport(document) {
   let bytes;
   try { bytes = new TextEncoder().encode(JSON.stringify(document)).length; }
   catch { throw new Error('Choose a valid JSON document.'); }
-  if (bytes > MAX_TRANSFER_BYTES) throw new Error('Import files must be 5 MiB or smaller.');
+  if (bytes > MAX_TRANSFER_BYTES) throw limitError('Import files must be 5 MiB or smaller.', 'bytes');
   object(document, 'File', ['format', 'version', 'exportedAt', 'spaces', 'favorites', 'settings']);
   if (document.format !== TRANSFER_FORMAT) fail('File', 'expected format “arclet”. See the format guide.');
   if (document.version !== TRANSFER_VERSION) fail('File', 'only Arclet format version 1 is supported.');
@@ -52,13 +61,13 @@ export function normalizeImport(document) {
     fail('exportedAt', 'expected an ISO date string.');
   }
   let records = 0;
-  const count = () => { if (++records > MAX_RECORDS) throw new Error('Import files may contain at most 10,000 spaces, folders, and pages combined.'); };
+  const count = () => { if (++records > MAX_RECORDS) throw limitError('Import files may contain at most 10,000 spaces, folders, and pages combined.', 'records'); };
   function page(value, path, pin = false) {
     count();
     object(value, path, pin ? [...PAGE_FIELDS, 'type'] : PAGE_FIELDS);
     if (pin && value.type !== 'pin') fail(path, 'expected type “pin”.');
     let url;
-    try { url = safeSavedUrl(text(value.url, `${path}.url`, 8192)); }
+    try { url = safeSavedUrl(text(value.url, `${path}.url`, MAX_TRANSFER_BYTES)); }
     catch (error) { fail(`${path}.url`, error.message); }
     return { ...(pin ? { type: 'pin' } : {}), url, title: text(value.title, `${path}.title`, 200, pageLabel(url)), ...appearance(value, path, null) };
   }
@@ -122,7 +131,16 @@ export function normalizeImport(document) {
 }
 
 export function exportData(data, now = new Date()) {
-  const page = item => ({ title: item.title, url: item.url, icon: item.icon ?? null, iconColor: item.iconColor ?? null });
+  const page = item => ({ title: item.title?.trim() || pageLabel(item.url), url: item.url, icon: item.icon ?? null, iconColor: item.iconColor ?? null });
+  // Older versions could create duplicate pins when merging spaces. Keep backups
+  // usable without mutating the saved layout or closing any running instances.
+  const uniquePages = (pages, seen = new Set()) => pages.filter(item => claimUrl(item, seen));
+  function claimUrl(item, seen) {
+    const url = safeSavedUrl(item.url);
+    if (seen.has(url)) return false;
+    seen.add(url);
+    return true;
+  }
   const spaceNames = new Set();
   function uniqueName(name, used, max) {
     let candidate = name;
@@ -135,15 +153,18 @@ export function exportData(data, now = new Date()) {
   }
   const document = {
     format: TRANSFER_FORMAT, version: TRANSFER_VERSION,
-    favorites: data.favorites.map(page),
+    exportedAt: now.toISOString(),
+    favorites: uniquePages(data.favorites).map(page),
     spaces: data.spaces.map(space => {
       const folderNames = new Set();
+      const urls = new Set();
       return { name: uniqueName(space.name, spaceNames, 32), color: space.color,
       backgroundColor: space.backgroundColor ?? null, icon: space.icon, iconColor: space.iconColor ?? null,
-      items: pinnedEntries(data, space.id).map(({ kind, item }) => kind === 'pin'
-        ? { type: 'pin', ...page(item) }
-        : { type: 'folder', name: uniqueName(item.name, folderNames, 64), icon: item.icon, iconColor: item.iconColor ?? null, collapsed: item.collapsed ?? false,
-          items: pinnedEntries(data, space.id, item.id).map(({ item }) => ({ type: 'pin', ...page(item) })) }) };
+      items: pinnedEntries(data, space.id).flatMap(({ kind, item }) => {
+        if (kind === 'pin') return claimUrl(item, urls) ? [{ type: 'pin', ...page(item) }] : [];
+        return [{ type: 'folder', name: uniqueName(item.name, folderNames, 64), icon: item.icon, iconColor: item.iconColor ?? null, collapsed: item.collapsed ?? false,
+          items: uniquePages(pinnedEntries(data, space.id, item.id).map(({ item }) => item), urls).map(item => ({ type: 'pin', ...page(item) })) }];
+      }) };
     }),
     settings: Object.fromEntries(SETTINGS.map(key => [key, data[key] ?? defaultData()[key]]))
   };

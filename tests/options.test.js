@@ -71,3 +71,36 @@ test('separate preview pages share saved preferences while their sample browser 
   const reopened = createController(createDemoApi({ savedDataStore: store }));
   assert.equal((await run(reopened)).theme, 'dark');
 });
+
+test('Restore requests optional sessions access before messaging and denial leaves tabs untouched', async () => {
+  const previous = globalThis.chrome;
+  const calls = [];
+  let granted = false;
+  globalThis.chrome = {
+    windows: { getCurrent: async () => ({ id: 42 }) },
+    permissions: { request: async value => { calls.push(value); return granted; } },
+    runtime: { id: 'test', sendMessage: async message => { calls.push(message.type); return { ok: true, state: {} }; } }
+  };
+  try {
+    const platform = await connect();
+    await assert.rejects(platform.request('RESTORE_TAB'), /not allowed/);
+    assert.deepEqual(calls, [{ permissions: ['sessions'] }]);
+    granted = true;
+    await platform.request('RESTORE_TAB');
+    assert.deepEqual(calls.slice(1), [{ permissions: ['sessions'] }, 'RESTORE_TAB']);
+    await platform.request('GET_STATE');
+    assert.equal(calls.at(-1), 'GET_STATE');
+  } finally { if (previous === undefined) delete globalThis.chrome; else globalThis.chrome = previous; }
+});
+
+test('saved tabs can close before sessions access exists and restore works after it is granted', async () => {
+  const browser = (await import('./fake-browser.js')).fakeBrowser([{ id: 1, windowId: 1, url: 'https://close.test/', title: 'Close', index: 0 }]);
+  const sessions = browser.api.sessions;
+  delete browser.api.sessions;
+  await browser.run('SAVE_PAGE', { kind: 'pin', tabId: 1 });
+  await browser.run('CLOSE_TAB', { id: 1 });
+  assert.equal((await browser.run()).tabs.length, 0);
+  await assert.rejects(browser.run('RESTORE_TAB'), /Allow recently closed/);
+  browser.api.sessions = sessions;
+  assert.equal((await browser.run('RESTORE_TAB')).tabs.length, 1);
+});

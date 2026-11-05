@@ -31,6 +31,7 @@ export function createDemoApi({ savedDataStore } = {}) {
   const closed = [];
   const clone = value => structuredClone(value);
   const storage = store => ({
+    remove: async key => { delete store[key]; },
     get: async key => ({ [key]: clone(store === local && key === 'data' ? savedDataStore?.get() ?? store[key] : store[key]) }),
     set: async values => {
       Object.assign(store, clone(values));

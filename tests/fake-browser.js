@@ -10,7 +10,7 @@ export function fakeBrowser(initial = []) {
   const closed = [];
   const reloaded = [];
   const navigated = [];
-  const storage = store => ({ get: async key => ({ [key]: clone(store()[key]) }), set: async values => Object.assign(store(), clone(values)) });
+  const storage = store => ({ get: async key => ({ [key]: clone(store()[key]) }), set: async values => Object.assign(store(), clone(values)), remove: async key => { delete store()[key]; } });
   const find = id => { const tab = current.find(tab => tab.id === id); if (!tab) throw new Error('No such tab'); return tab; };
   const reindex = () => {
     const indices = {};

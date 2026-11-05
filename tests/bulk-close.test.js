@@ -96,3 +96,19 @@ test('invalid or stale close-below anchors cannot close other tabs or windows', 
   await assert.rejects(browser.run('CLOSE_OPEN_TABS', { mode: 'below', id: 4, spaceId: 'personal' }), /no longer/);
   assert.deepEqual(await ids(browser), before);
 });
+
+test('confirmed bulk close excludes tabs that arrived after the confirmation opened', async () => {
+  const browser = await fixture();
+  const approved = [1, 4, 6, 7, 8, 9];
+  const before = await browser.api.tabs.query({});
+  browser.setTabs([...before, tab(11, 'https://new-arrival.test/', 9)]);
+  await browser.run('CLOSE_OPEN_TABS', { mode: 'all', spaceId: 'personal', ids: approved });
+  assert.deepEqual(await ids(browser), [2, 3, 5, 10, 11]);
+});
+
+test('invalid confirmation targets do not close any tabs', async () => {
+  const browser = await fixture();
+  const before = await ids(browser);
+  await assert.rejects(browser.run('CLOSE_OPEN_TABS', { mode: 'all', ids: ['1'] }), /valid tabs/);
+  assert.deepEqual(await ids(browser), before);
+});

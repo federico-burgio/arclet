@@ -14,7 +14,7 @@ The default shortcut is **⌘ Shift E** on macOS or **Ctrl Shift E** elsewhere. 
 
 ## What works
 
-- **Live vertical tabs** for the current Chrome window. Switch, close, mute, and restore the last closed tab. Right-click an open tab for **Close all tabs** or **Close all tabs below**. These actions close only the visible Open tabs list in that space and window; saved pins/favorites and other spaces stay open. “Below” follows the current displayed order and keeps the clicked tab open. New tab and the empty content area also offer **Close all tabs**. Recently closed tabs remain restorable.
+- **Live vertical tabs** for the current Chrome window. Switch, close, mute, and restore the last closed tab. Right-click an open tab for **Close all tabs** or **Close all tabs below**. These actions show a confirmation with the tab count and warn when Chrome-pinned tabs are included. They close only the confirmed tabs in the visible Open tabs list in that space and window; saved pins/favorites, newly arriving tabs, and other spaces stay open. “Below” follows the current displayed order and keeps the clicked tab open. New tab and the empty content area also offer **Close all tabs**. Recently closed tabs remain restorable after you grant optional access on the first Restore action.
 - **Spaces** with names, icons, and six color palettes. New spaces use Slate gray by default. The selected footer tab shows its name and connects to a subtly colored folder containing its tabs. The surrounding background uses the theme’s gray unless you choose a custom background color. The selector sits at the footer’s left edge. Add a space with its plus button; right-click a space to edit it.
 - **Drag and drop** to reorder tabs, or drop a tab onto a space icon to move it. A tab’s right-click menu also provides a keyboard-accessible way to move it (Shift F10).
 - **Favorites** shared by all spaces. Right-click an open tab or pinned page and choose **Add to favorites**. A pinned page can be saved as a favorite even when its browser tab is closed. A favorite owns one running browser tab per window and resumes its current page across spaces. That instance stays out of the regular tab list as it navigates; independent duplicate tabs remain visible. Right-click a favorite and choose **Remove favorite** to remove it; its running instances remain open as regular tabs. Drag favorite tiles to rearrange them, including across wrapped rows; insertion markers show the destination and Escape cancels. Their global order survives restarts. Use Alt+← / Alt+→ or the context menu’s Move left / Move right actions for keyboard ordering. Empty favorites sections are hidden.
@@ -41,7 +41,7 @@ The default shortcut is **⌘ Shift E** on macOS or **Ctrl Shift E** elsewhere. 
 - **Multiple windows** with independently selected spaces. Tab actions stay within their originating window.
 - **Spaces survive Chrome restarts.** When Chrome restores your tabs, Arclet recovers their assignments from a local checkpoint, including separate copies of the same URL.
 
-Deleting a space moves its tabs, folders, and pinned pages into the first remaining space, keeping folder membership. It does not close tabs. Tabs opened by a page inherit their opener’s space; other new tabs use the window’s selected space.
+Deleting a space moves its tabs, folders, and pinned pages into the first remaining space, keeping folder membership. Duplicate pinned URLs merge into the destination’s existing pin; extra running instances become regular tabs. It does not close tabs. Tabs opened by a page inherit their opener’s space; other new tabs use the window’s selected space.
 
 ## Import and export
 
@@ -50,6 +50,8 @@ Use **Settings → Import & export** to download your sidebar as JSON or select 
 The public **Arclet format v1** covers spaces, favorites, pinned pages, folders, icons, colors, order, and appearance preferences. See the [format guide](docs/import-format.md), [JSON Schema](docs/import-format.schema.json), and [example file](docs/import-example.json). Settings links to the guide on GitHub and includes an offline example download. This is a documented target for future converters; it does not directly parse Arc's internal files.
 
 Export excludes live browser tabs, history, cookies, passwords, and tab-recovery state. All import/export processing happens locally.
+
+Long HTTP/HTTPS URLs are supported within the overall 5 MiB backup limit. Blank page titles use the hostname. Saved layout changes are checked against the backup’s size and record limits before saving so they remain exportable. A layout saved by an older version that already exceeds a limit can still be edited, reordered, and shrunk; only changes that add items or address length are refused until it is back under the limit. Import previews report a merged result that would exceed a limit before you confirm. Older duplicate pins and blank titles are repaired when loaded or exported.
 
 ## Theme palette
 
@@ -78,7 +80,9 @@ Spaces, favorites, pinned pages, folders, custom icons/colors, and appearance ar
 
 To keep your browsing session across restarts, enable **Settings → On startup → Continue where you left off** in Chrome (`chrome://settings/onStartup`). Arclet matches the restored windows and tabs to the checkpoint, one tab at a time. It handles tabs whose URLs arrive late, duplicate URLs, worker suspension, extension reloads, and window-close events during shutdown. Moving tabs, navigating, and rearranging Chrome’s native tab strip updates the checkpoint even when the panel is closed. Arclet does not reopen pages that Chrome has not restored.
 
-Recovery uses exact URLs, window context, tab order, and pinned status. Copies of the same page in different spaces are matched by their order within a window. Completely indistinguishable windows or duplicate tabs reordered outside Chrome’s saved session can be ambiguous. Unmatched pages use the selected space. Saved-instance ownership is also checkpointed. Unlike space assignment, saved ownership is not guessed for duplicate URLs or indistinguishable restored windows: uncertain tabs stay visible as regular tabs. Native Chrome Undo Close may similarly lack proof of saved ownership; Arclet’s explicit restore action reconnects identifiable sessions. Verified home redirects retain ownership and count as home; uncertain redirect sequences conservatively show Away. The checkpoint retains up to 20 recent missing/closed windows so that shutdown cannot erase the last session; it excludes incognito URLs.
+Recovery uses exact URLs, window context, tab order, and pinned status. Copies of the same page in different spaces are matched by their order within a window. Completely indistinguishable windows or duplicate tabs reordered outside Chrome’s saved session can be ambiguous. Unmatched pages use the selected space. Saved-instance ownership is also checkpointed. Unlike space assignment, saved ownership is not guessed for duplicate URLs or indistinguishable restored windows: uncertain tabs stay visible as regular tabs. Native Chrome Undo Close may similarly lack proof of saved ownership; Arclet’s explicit restore action reconnects identifiable sessions. Verified home redirects retain ownership and count as home; uncertain redirect sequences conservatively show Away. The checkpoint retains up to 20 recent missing/closed windows so that shutdown cannot erase the last session. It has a 1 MiB total budget and omits tab addresses longer than 8,192 characters; omitted tabs may return to the window’s selected space after a restart. Addresses are never truncated for recovery matching. It excludes incognito URLs. Recovery writes are separate from saved settings, and a failed checkpoint does not prevent the sidebar from loading or settings from saving. State reads do not write storage.
+
+Arclet cannot be enabled in incognito windows, and private tabs cannot be pinned or favorited. Existing saved URLs from older versions remain saved; the extension cannot identify or erase private pages that were previously saved as ordinary shortcuts. Invalid stored palettes and preferences fall back to safe defaults when loaded, preserving valid saved pages.
 
 After updating from 0.1, reload the extension at `chrome://extensions` and reopen the sidebar. Assign any tabs whose old session-only assignments were already lost once; assignments saved by 0.2 survive subsequent restarts. The update cannot reconstruct assignments that 0.1 never saved to disk.
 
@@ -103,6 +107,8 @@ npm run package  # Produces dist/arclet/ and dist/arclet-0.16.0.zip
 After changing source files, click Reload on the extension’s card at `chrome://extensions`, then close and reopen the panel. There are no remote scripts, fonts, or build tools.
 
 For the restart integration test, set `ARCLET_PLAYWRIGHT` to an installed Playwright package directory and `ARCLET_CHROME` to a Chrome for Testing / Chromium executable, then run `node scripts/restart-smoke.mjs`. It opens a temporary browser profile, assigns duplicate URLs in two real Chrome windows, changes a URL through Chrome itself, closes the browser process, launches it again with the same profile, and checks each restored assignment. It also reloads the panel and removes the profile afterward. The test never uses your regular Chrome profile.
+
+Run `node scripts/reliability-smoke.mjs` with the same `ARCLET_PLAYWRIGHT` and `ARCLET_CHROME` variables to check clipboard copying without its former permission, optional sessions access on a fresh install, a real Leave site prompt with Stay, bulk-close confirmation and cancellation, protection for newly arriving tabs, and rendering after an invalid stored palette. It uses a temporary Chrome profile. Chrome API calls time out after 10 seconds so a pending browser dialog cannot hold the command queue indefinitely.
 
 ## Source
 
@@ -130,13 +136,29 @@ For the restart integration test, set `ARCLET_PLAYWRIGHT` to an installed Playwr
 | `sidePanel` | Show the sidebar. |
 | `tabs` | Read tab titles, URLs, and status to display and organize tabs. |
 | `storage` | Save spaces, shortcuts, appearance, and a local tab-recovery checkpoint on this device. |
-| `sessions` | Restore a recently closed tab when requested. |
+| `sessions` (optional) | Restore a recently closed tab. Chrome asks for access when you first choose Restore; denying access leaves your tabs unchanged. |
 | `webNavigation` | Distinguish automatic home redirects from ordinary navigation in saved tab instances. |
 | `favicon` | Read Chrome’s favicon resources without a third-party icon service. |
-| `clipboardWrite` | Copy the active tab’s URL when you click Copy URL. Arclet never reads the clipboard. |
+
+Copy URL uses the browser clipboard API directly from your click and needs no clipboard permission. Arclet never reads the clipboard.
 
 The `webNavigation` permission identifies automatic redirects so a redirected saved home does not show the Away arrow. Redirect destinations belong to the running instance, survive unambiguous session restoration, and are excluded from import/export. Existing redirected tabs need Return to saved URL or close/reopen once to establish this evidence. Late script redirects and ambiguous event sequences conservatively stay Away.
 
 No analytics, account, backend, host permissions, or webpage-content access. Opening a URL or submitting a Google search naturally navigates the browser to that service. Removing the extension removes its saved data.
 
 Arclet is an independent project inspired by Arc’s interaction patterns. It is not affiliated with Arc or The Browser Company.
+
+## Chrome Web Store submission notes
+
+Suggested listing description: “A calmer home for your tabs. Organize tabs into spaces, keep favorites close, save pinned pages in folders, and search across your windows. Your settings and saved pages stay on your device. Arclet is an independent project and is not affiliated with Arc or The Browser Company.”
+
+Permission justifications for the dashboard:
+
+- **sidePanel:** Arclet displays its tab and space organizer in Chrome’s native side panel.
+- **tabs:** Arclet displays tab titles, URLs, status, audio, and pinned state, and lets the user activate, arrange, move, mute, navigate, and close tabs. It needs access across the user’s normal windows to maintain window-specific spaces and saved-page ownership.
+- **storage:** Arclet stores spaces, saved pages, folders, appearance preferences, and a bounded restart checkpoint locally. Session-only tab identities live in session storage. No data is sent to a server.
+- **webNavigation:** Main-frame navigation events distinguish Chrome-verified automatic redirects of saved pages from ordinary browsing so saved-page Home/Away indicators remain accurate. Events for tabs without saved-page ownership are ignored.
+- **favicon:** Arclet displays Chrome’s locally available site icons beside tabs and saved pages, without contacting an external favicon service.
+- **sessions (optional):** Only needed for the user-invoked Restore last closed tab action. Requested from that action on first use. Recently closed session identifiers can reconnect a saved page to its restored tab. The extension does not request or display other-device sessions.
+
+The repository contains these justifications; the publisher must enter them in the store dashboard when submitting.

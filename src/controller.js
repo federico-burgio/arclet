@@ -1,13 +1,17 @@
 import { savedHome, observeSavedNavigation } from './saved-home.js';
-import { COLORS, DEFAULT_FAVORITES_PER_ROW, MAX_FAVORITES_PER_ROW, FONT_SCALES, DEFAULT_FONT_SCALE, defaultData, destination, safeSavedUrl, iconAppearance, openTabsForSpace } from './model.js';
-import { preparePersistence, reconcileWorkspace, forgetTab } from './persistence.js';
+import { COLORS, MAX_FAVORITES_PER_ROW, FONT_SCALES, destination, safeSavedUrl, iconAppearance, openTabsForSpace } from './model.js';
+import { preparePersistence, reconcileWorkspace, forgetTab, boundWorkspace } from './persistence.js';
 import { normalizePinnedOrder, movePinnedItem, pinnedEntries, removePinnedFolder } from './pinned-order.js';
-import { exportData, importToken, planImport } from './transfer.js';
+import { backupSize, exportData, importToken, planImport } from './transfer.js';
 import { savedPage, ownedTab, adoptableTab, bindSavedTab, clearSavedOwnership } from './saved-tabs.js';
+import { boundedApi } from './api-timeout.js';
+import { normalizeStoredData } from './stored-data.js';
 
 // The worker is the only writer. Serialize commands and tab events across every open panel.
-export function createController(api, notify = () => {}) {
+export function createController(api, notify = () => {}, { apiTimeoutMs = 10000 } = {}) {
+  api = boundedApi(api, apiTimeoutMs);
   let tail = Promise.resolve();
+  let ownedTabs;
   const queue = task => {
     const result = tail.then(task);
     tail = result.catch(() => {});
@@ -18,29 +22,55 @@ export function createController(api, notify = () => {}) {
     const [local, checkpoint, session] = await Promise.all([
       api.storage.local.get('data'), api.storage.local.get('workspace'), api.storage.session.get('live')
     ]);
-    const data = local.data ?? defaultData();
-    data.backgroundColor ??= null;
-    data.showSearchBar ??= true;
-    data.pageControlsPosition ??= 'left';
-    data.showFavoriteLabels ??= true;
-    data.favoritesPerRow ??= DEFAULT_FAVORITES_PER_ROW;
-    data.fontScale ??= DEFAULT_FONT_SCALE;
-    data.folders ??= [];
-    normalizePinnedOrder(data);
+    const data = normalizeStoredData(local.data);
     const live = session.live ?? { tabSpaces: {}, windowSpaces: {} };
     const state = { data, live, workspace: checkpoint.workspace ?? { version: 1, windows: [] } };
+    state.persistedData = JSON.stringify(local.data);
+    boundWorkspace(state.workspace);
     preparePersistence(state);
     return state;
   }
 
-  const save = async ({ data, live, workspace }) => {
+  const save = async state => {
+    const { data, live, workspace } = state;
     normalizePinnedOrder(data);
-    await api.storage.local.set({ data, workspace });
+    const serialized = JSON.stringify(data);
+    if (serialized !== state.persistedData) {
+      try { await api.storage.local.set({ data }); }
+      catch (error) {
+        if (!/quota/i.test(error.message)) throw error;
+        // An older, unbounded checkpoint must not prevent saving preferences.
+        await api.storage.local.remove('workspace');
+        await api.storage.local.set({ data });
+      }
+      state.persistedData = serialized;
+    }
     await api.storage.session.set({ live });
+    // Recovery is best effort. A failed checkpoint must never hide saved pages.
+    await api.storage.local.set({ workspace }).catch(() => {});
   };
   async function synchronize(state) {
     state.tabs = await api.tabs.query({});
     reconcileWorkspace(state, state.tabs);
+    ownedTabs = new Set(Object.keys(state.live.pageOwners).map(Number));
+  }
+  // Every newly saved layout must also be a valid, restorable backup. Layouts
+  // saved before these limits existed may already exceed them; never lock those:
+  // allow any change that adds no items or address bytes, including removals.
+  function assertBackup(beforeJson, after, importing = false) {
+    let error;
+    try { exportData(after); return; } catch (caught) { error = caught; }
+    const before = JSON.parse(beforeJson);
+    const exportable = (() => { try { exportData(before); return true; } catch { return false; } })();
+    const [old, next] = [backupSize(before), backupSize(after)];
+    if (!exportable && next.records <= old.records && next.urlBytes <= old.urlBytes) return;
+    if (error.limit === 'records') throw new Error(importing
+      ? 'This import would exceed Arclet’s limit of 10,000 spaces, folders, and saved pages. Remove some items or import a smaller file.'
+      : 'Arclet keeps up to 10,000 spaces, folders, and saved pages so they can always be backed up. Remove some before adding more.');
+    if (error.limit === 'bytes') throw new Error(importing
+      ? 'This import would make your saved pages larger than the 5 MiB backup limit. Remove some pages or import a smaller file.'
+      : 'Saved pages can total up to 5 MiB so they can always be backed up. Remove pages with very long addresses before adding more.');
+    throw error;
   }
   const requireSpace = (data, id) => {
     const space = data.spaces.find(space => space.id === id);
@@ -59,7 +89,7 @@ export function createController(api, notify = () => {}) {
 
   async function rememberClosed(state, id) {
     const snapshot = state.live.ownerSnapshots[id];
-    if (!snapshot || snapshot.incognito) return;
+    if (!snapshot || snapshot.incognito || !api.sessions.getRecentlyClosed) return;
     const sessions = await api.sessions.getRecentlyClosed({ maxResults: 25 }).catch(() => []);
     const matches = sessions.filter(item => item.tab?.sessionId && item.tab.url === snapshot.url && item.tab.windowId === snapshot.windowId);
     const session = matches.find(item => item.tab.id === id) ?? (matches.length === 1 && Math.abs(Date.now() / 1000 - matches[0].lastModified) < 3 ? matches[0] : null);
@@ -87,6 +117,7 @@ export function createController(api, notify = () => {}) {
     await synchronize(state);
     const { data, live } = state;
     const spaceId = selectedSpace(data, live, windowId);
+    const originalData = JSON.stringify(data);
 
     // Commands may only act on tabs in the requesting panel's window.
     async function tabInWindow(id) {
@@ -110,6 +141,8 @@ export function createController(api, notify = () => {}) {
         return { ...getState(windowId, state), exportDocument: exportData(data) };
       case 'PREVIEW_IMPORT': {
         const plan = planImport(data, payload.document);
+        // Report a merged result that would exceed the limits before the user confirms.
+        assertBackup(JSON.stringify(data), plan.data, true);
         return { ...getState(windowId, state), importPreview: { ...plan.summary, token: await importToken(data) } };
       }
       case 'IMPORT_DATA': {
@@ -121,7 +154,6 @@ export function createController(api, notify = () => {}) {
         break;
       }
       case 'GET_STATE':
-        await save(state);
         return getState(windowId, state);
       case 'SELECT_SPACE':
         requireSpace(data, payload.id);
@@ -156,6 +188,13 @@ export function createController(api, notify = () => {}) {
         const fallback = data.spaces[0].id;
         const existing = pinnedEntries(data, fallback).length;
         pinnedEntries(data, payload.id).forEach(({ item }, index) => { item.order = existing + index; });
+        const urls = new Set(data.pins.filter(pin => pin.spaceId === fallback).map(pin => pin.url));
+        data.pins = data.pins.filter(pin => {
+          if (pin.spaceId !== payload.id) return true;
+          if (urls.has(pin.url)) { clearSavedOwnership(state, pin.id); return false; }
+          urls.add(pin.url);
+          return true;
+        });
         for (const [id, space] of Object.entries(live.tabSpaces)) if (space === payload.id) live.tabSpaces[id] = fallback;
         for (const [id, space] of Object.entries(live.windowSpaces)) if (space === payload.id) live.windowSpaces[id] = fallback;
         data.pins.forEach(pin => { if (pin.spaceId === payload.id) pin.spaceId = fallback; });
@@ -250,6 +289,11 @@ export function createController(api, notify = () => {}) {
           if (index < 0) throw new Error('This tab is no longer in the open-tab list.');
           targets = targets.slice(index + 1);
         }
+        if (payload.ids !== undefined) {
+          if (!Array.isArray(payload.ids) || !payload.ids.every(Number.isInteger)) throw new Error('Choose valid tabs to close.');
+          const approved = new Set(payload.ids);
+          targets = targets.filter(tab => approved.has(tab.id));
+        }
         if (targets.length) {
           await closeTabs(state, targets.map(tab => tab.id));
         }
@@ -293,6 +337,7 @@ export function createController(api, notify = () => {}) {
           source = data.pins.find(page => page.id === payload.pageId);
           if (!source) throw new Error('This pinned page no longer exists.');
         } else source = await tabInWindow(payload.tabId);
+        if (source.incognito) throw new Error('Private tabs cannot be saved.');
         const url = safeSavedUrl(source.url || source.pendingUrl);
         const list = payload.kind === 'favorite' ? data.favorites : data.pins;
         const targetSpace = payload.spaceId ?? spaceId;
@@ -305,7 +350,7 @@ export function createController(api, notify = () => {}) {
         if (list.some(page => page.url === url && (payload.kind === 'favorite' || page.spaceId === targetSpace))) {
           throw new Error('This page is already saved here.');
         }
-        const page = { id: crypto.randomUUID(), url, title: (source.title || new URL(url).hostname).slice(0, 200),
+        const page = { id: crypto.randomUUID(), url, title: (source.title?.trim() || new URL(url).hostname).slice(0, 200),
           ...(source.icon ? iconAppearance(source, true) : {}),
           ...(payload.kind === 'favorite' ? {} : { spaceId: targetSpace, ...(folder ? { folderId: folder.id } : {}) }) };
         list.push(page);
@@ -347,8 +392,9 @@ export function createController(api, notify = () => {}) {
         break;
       }
       case 'RESTORE_TAB': {
+        if (!api.sessions.getRecentlyClosed) throw new Error('Allow recently closed tab access to restore a tab.');
         const sessions = await api.sessions.getRecentlyClosed({ maxResults: 25 });
-        const recent = sessions.find(item => item.tab?.sessionId);
+        const recent = sessions.find(item => item.tab?.sessionId && !item.tab.incognito);
         if (!recent) throw new Error('No recently closed tabs to restore.');
         const restored = await api.sessions.restore(recent.tab.sessionId);
         const record = live.closedPages.find(record => record.sessionId === recent.tab.sessionId);
@@ -405,6 +451,7 @@ export function createController(api, notify = () => {}) {
         break;
       default: throw new Error('Unknown sidebar command.');
     }
+    if (JSON.stringify(state.data) !== originalData) assertBackup(originalData, state.data, type === 'IMPORT_DATA');
     await synchronize(state);
     await save(state);
     notify();
@@ -420,6 +467,7 @@ export function createController(api, notify = () => {}) {
     }),
     dispatch: message => queue(() => run(message)),
     navigationEvent: (type, event) => queue(async () => {
+      if (event.frameId !== 0 || (ownedTabs && !ownedTabs.has(event.tabId))) return;
       const state = await load();
       await synchronize(state);
       if (!observeSavedNavigation(state, type, event)) return;

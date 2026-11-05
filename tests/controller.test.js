@@ -241,7 +241,7 @@ test('a closed pinned page can become a favorite without opening a tab', async (
   await assert.rejects(browser.run('SAVE_PAGE', { kind: 'favorite', pageId: pin.id }), /already saved/);
   await assert.rejects(browser.run('SAVE_PAGE', { kind: 'favorite', pageId: 'missing' }), /no longer exists/);
   browser.local.data.pins.push({ id: 'unsafe', url: 'javascript:alert(1)', title: 'Unsafe', spaceId: 'personal' });
-  await assert.rejects(browser.run('SAVE_PAGE', { kind: 'favorite', pageId: 'unsafe' }), /http and https/);
+  await assert.rejects(browser.run('SAVE_PAGE', { kind: 'favorite', pageId: 'unsafe' }), /no longer exists/);
 });
 
 test('page control placement upgrades older settings, persists across windows and restarts, and rejects invalid values', async () => {
@@ -260,4 +260,41 @@ test('page control placement upgrades older settings, persists across windows an
     assert.equal((await browser.run()).pageControlsPosition, 'right');
   }
   assert.equal((await browser.run('SET_PAGE_CONTROLS_POSITION', { position: 'left' })).pageControlsPosition, 'left');
+});
+
+test('repeated state reads never write and unrelated navigation avoids storage and tab queries', async () => {
+  const browser = fakeBrowser([tab(1, 'https://regular.test/'), tab(2, 'https://saved.test/', 1)]);
+  await browser.run('SAVE_PAGE', { tabId: 2, kind: 'pin' });
+  let writes = 0;
+  for (const area of ['local', 'session']) {
+    const set = browser.api.storage[area].set;
+    browser.api.storage[area].set = async values => { writes++; return set(values); };
+  }
+  await browser.run();
+  await browser.run('GET_STATE', {}, 2);
+  assert.equal(writes, 0);
+  let reads = 0;
+  const query = browser.api.tabs.query;
+  browser.api.tabs.query = async values => { reads++; return query(values); };
+  const get = browser.api.storage.local.get;
+  browser.api.storage.local.get = async key => { reads++; return get(key); };
+  for (const type of ['before', 'committed', 'ready', 'completed', 'error', 'history', 'fragment']) {
+    await browser.controller.navigationEvent(type, { frameId: 0, tabId: 1, url: 'https://regular.test/', timeStamp: 1 });
+  }
+  assert.equal(reads, 0);
+  assert.equal(writes, 0);
+  await browser.controller.navigationEvent('before', { frameId: 0, tabId: 2, url: 'https://saved.test/', timeStamp: 2 });
+  assert.ok(reads > 0);
+  assert.ok(writes > 0);
+});
+
+test('private tabs cannot be pinned or favorited and private sessions are skipped by restore', async () => {
+  const browser = fakeBrowser([tab(1, 'https://private.test/', 0, 1, { incognito: true })]);
+  for (const kind of ['pin', 'favorite']) {
+    await assert.rejects(browser.run('SAVE_PAGE', { kind, tabId: 1 }), /Private tabs/);
+  }
+  assert.equal(browser.local.data.pins.length, 0);
+  assert.equal(browser.local.data.favorites.length, 0);
+  browser.api.sessions.getRecentlyClosed = async () => [{ tab: { sessionId: 'private', incognito: true } }];
+  await assert.rejects(browser.run('RESTORE_TAB'), /No recently closed/);
 });

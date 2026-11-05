@@ -56,7 +56,7 @@
       "properties": {
         "url": {
           "type": "string",
-          "maxLength": 8192,
+          "maxLength": 5242880,
           "pattern": "^[hH][tT][tT][pP][sS]?://",
           "format": "uri"
         },
@@ -99,7 +99,7 @@
         },
         "url": {
           "type": "string",
-          "maxLength": 8192,
+          "maxLength": 5242880,
           "pattern": "^[hH][tT][tT][pP][sS]?://",
           "format": "uri"
         },

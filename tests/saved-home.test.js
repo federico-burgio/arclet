@@ -157,7 +157,8 @@ test('aliases are private to an instance and never exported or applied to indepe
 });
 
 test('incognito redirect destinations stay out of the persistent checkpoint', async () => {
-  const { browser, redirect } = await fixture('favorite', { incognito: true });
+  const { browser, redirect } = await fixture('favorite');
+  browser.change(1, { incognito: true }); // Simulate legacy private ownership.
   await redirect();
   assert.equal(JSON.stringify(browser.local).includes(canonical), false);
   assert.equal(browser.live.savedHomes[1].urls[0], canonical);
@@ -206,6 +207,7 @@ test('a tab moved into a window with an existing instance loses its alias with o
   browser.setTabs([tab(1, canonical), tab(2, root, 0, 2)]);
   await browser.run('OPEN_PAGE', { id: page.id }, 2);
   browser.change(1, { windowId: 2, index: 1 });
+  await browser.controller.tabsChanged(); // Chrome's onAttached event persists the move.
   const state = await browser.run('GET_STATE', {}, 2);
   assert.equal(state.tabs.find(tab => tab.id === 1).savedPageId, null);
   assert.equal(state.tabs.find(tab => tab.id === 1).savedHome, undefined);
