@@ -101,7 +101,7 @@ Open `http://127.0.0.1:4173/sidepanel.html?demo=1`. This explicit preview uses s
 ```sh
 npm test          # State, concurrency, navigation, and tab-action regression tests
 npm run check    # Manifest, resources, CSP, IDs, and JS syntax
-npm run package  # Produces dist/arclet/ and dist/arclet-0.16.0.zip
+npm run package  # Produces dist/arclet/ and dist/arclet-0.16.1.zip
 ```
 
 After changing source files, click Reload on the extension’s card at `chrome://extensions`, then close and reopen the panel. There are no remote scripts, fonts, or build tools.
