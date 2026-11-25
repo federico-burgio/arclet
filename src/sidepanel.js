@@ -106,18 +106,28 @@ function confirmCloseTabs(payload) {
     if (index < 0) return;
     tabs = tabs.slice(index + 1);
   }
+  if (payload.mode === 'regular') tabs = tabs.filter(tab => !tab.pinned);
   if (!tabs.length) return;
   const pinned = tabs.filter(tab => tab.pinned).length;
   $('#bulk-close-description').textContent = `Close ${tabs.length} ${tabs.length === 1 ? 'tab' : 'tabs'} in this space?` +
     (pinned ? ` This includes ${pinned} Chrome-pinned ${pinned === 1 ? 'tab' : 'tabs'}.` : '');
+  $('#bulk-close-fine-print').textContent = payload.mode === 'regular'
+    ? 'Chrome-pinned tabs, saved pages, favorites, and tabs in other spaces stay open.'
+    : 'Saved pages, favorites, and tabs in other spaces stay open.';
   pendingClose = { ...payload, ids: tabs.map(tab => tab.id) };
   $('#bulk-close-dialog').returnValue = 'cancel';
   $('#bulk-close-dialog').showModal();
 }
-$('#bulk-close-dialog').addEventListener('close', () => {
+$('#bulk-close-dialog').addEventListener('close', async () => {
   const payload = pendingClose;
   pendingClose = null;
-  if (payload && $('#bulk-close-dialog').returnValue === 'confirm') command('CLOSE_OPEN_TABS', payload, 'Open tabs closed.');
+  if (!payload || $('#bulk-close-dialog').returnValue !== 'confirm') return;
+  if (payload.mode !== 'regular') { command('CLOSE_OPEN_TABS', payload, 'Open tabs closed.'); return; }
+  clearingTabs = true;
+  $('#clear-tabs').disabled = true;
+  await command('CLOSE_OPEN_TABS', payload, 'Regular tabs closed.');
+  clearingTabs = false;
+  if (state) renderTabs();
 });
 
 function applyTheme() {
@@ -232,6 +242,19 @@ $('#copy-url').addEventListener('click', async () => {
     updatePageActions();
   }
 });
+async function copyUrl(url) {
+  try {
+    if (!url) throw new Error('This item has no address to copy.');
+    await navigator.clipboard.writeText(url);
+    toast('URL copied.');
+  } catch (error) { toast(error.message, true); }
+}
+// Context menus for anything that opens a page lead with Copy URL. Saved pages copy the
+// address their tab is showing now, or the saved URL when the tab is closed.
+function copyUrlActions(url) {
+  return [{ label: 'Copy URL', icon: 'link', disabled: !url, action: () => copyUrl(url) }, { separator: true }];
+}
+const liveUrl = tab => tab?.url || tab?.pendingUrl || '';
 function saveCurrent(kind) {
   const tab = currentTab();
   if (!tab) { toast('Open a page first.', true); return; }
@@ -292,7 +315,7 @@ for (const definition of CONTROL_FAVORITES) {
     const page = controlFavorite(state, definition.kind);
     const session = page && pageSession(page, state.tabs);
     openMenu(x, y, [
-      ...(page ? [...savedEditActions(page, definition.kind), { separator: true }, ...savedSessionActions(page, session.tab, session.status), { separator: true }] : []),
+      ...(page ? [...copyUrlActions(liveUrl(session.tab) || page.url), ...savedEditActions(page, definition.kind), { separator: true }, ...savedSessionActions(page, session.tab, session.status), { separator: true }] : []),
       { label: `Set ${definition.title} URL`, icon: definition.icon, action: async () => {
         try { await platform.openOptions('sidebar'); } catch (error) { toast(error.message, true); }
       } }
@@ -371,7 +394,6 @@ function renderFavorites() {
       favoriteOrderingActions(page).find(entry => entry.label === (event.key === 'ArrowLeft' ? 'Move left' : 'Move right'))?.action();
     });
     node.append(favicon({ ...page, status: liveTab?.status }));
-    if (status === 'away') node.append(savedIndicator());
     if (liveTab?.audible || liveTab?.mutedInfo?.muted) {
       const audio = make('span', 'favorite-audio');
       audio.append(icon(liveTab.mutedInfo?.muted ? 'muted' : 'volume'));
@@ -380,6 +402,7 @@ function renderFavorites() {
     }
     if (state.showFavoriteLabels) node.append(make('span', 'favorite-label', page.title));
     bindContextMenu(node, (x, y) => openMenu(x, y, [
+      ...copyUrlActions(liveUrl(liveTab) || page.url),
       ...savedEditActions(page, 'favorite'),
       { separator: true },
       ...savedSessionActions(page, liveTab, status),
@@ -387,6 +410,7 @@ function renderFavorites() {
       { label: 'Remove favorite', icon: 'close', action: () => command('REMOVE_PAGE', { kind: 'favorite', id: page.id }) }
     ]));
     wrapper.append(node);
+    if (status === 'away') wrapper.append(savedResetButton(page));
     grid.append(wrapper);
   }
 }
@@ -395,6 +419,15 @@ function savedIndicator() {
   const node = make('span', 'saved-status saved-status--away');
   node.setAttribute('aria-hidden', 'true');
   node.append(icon('corner-up-left'));
+  return node;
+}
+// A saved tab that wandered off its saved URL shows this button; clicking it navigates back.
+function savedResetButton(page) {
+  const node = button(`Return ${page.title} to saved URL`, 'corner-up-left', 'tab-action saved-reset', event => {
+    event.stopPropagation();
+    command('RESET_SAVED_PAGE', { id: page.id });
+  });
+  node.title = `Return to saved URL\n${page.url}`;
   return node;
 }
 function decorateSavedItem(node, page, tab, status) {
@@ -457,11 +490,12 @@ function pageRow(page) {
   decorateSavedItem(main, page, liveTab, status);
   main.dataset.focusKey = `pin-${page.id}`;
   main.append(favicon({ ...page, status: liveTab?.status }), make('span', 'tab-title', page.title));
-  if (status === 'away') main.append(savedIndicator());
   row.append(main);
+  if (status === 'away') row.append(savedResetButton(page));
   if (liveTab?.audible || liveTab?.mutedInfo?.muted) row.append(button(liveTab.mutedInfo?.muted ? 'Unmute tab' : 'Mute tab', liveTab.mutedInfo?.muted ? 'muted' : 'volume', 'tab-action audible', () => command('MUTE_TAB', { id: liveTab.id })));
   if (liveTab) row.append(button(`Close ${page.title}`, 'close', 'tab-action', () => command('CLOSE_SAVED_PAGE', { id: page.id })));
   bindContextMenu(row, (x, y) => openMenu(x, y, [
+    ...copyUrlActions(liveUrl(liveTab) || page.url),
     ...savedEditActions(page, 'pin'),
     { separator: true },
     { label: 'Move to folder', icon: 'folder-input', action: () => openPinFolders(page, x, y) },
@@ -608,6 +642,7 @@ function renderTabs() {
     row.append(button(`Close ${tab.title || 'tab'}`, 'close', 'tab-action', () => command('CLOSE_TAB', { id: tab.id })));
     const showTabMenu = (x, y) => {
       openMenu(x, y, [
+        ...copyUrlActions(liveUrl(tab)),
         { label: 'Duplicate', icon: 'copy', action: () => command('DUPLICATE_TAB', { id: tab.id }) },
         { separator: true },
         { label: 'Pin to this space', icon: 'pin', action: () => command('SAVE_PAGE', { kind: 'pin', tabId: tab.id }, 'Pinned to this space.') },
@@ -766,13 +801,8 @@ $('#search-button').addEventListener('click', openSearch);
 $('#new-tab').addEventListener('click', () => {
   if (state) command('NEW_TAB', { spaceId: state.spaceId });
 });
-$('#clear-tabs').addEventListener('click', async () => {
-  if (!state) return;
-  clearingTabs = true;
-  $('#clear-tabs').disabled = true;
-  await command('CLOSE_OPEN_TABS', { mode: 'regular', spaceId: state.spaceId }, 'Regular tabs closed.');
-  clearingTabs = false;
-  renderTabs();
+$('#clear-tabs').addEventListener('click', () => {
+  if (state) confirmCloseTabs({ mode: 'regular', spaceId: state.spaceId });
 });
 $('#close-search').addEventListener('click', () => $('#search-dialog').close());
 $('#search-input').addEventListener('input', () => renderSearch());
